@@ -26,4 +26,8 @@ export async function updateTag(id: string, input: Partial<Omit<Tag, "id">>) {
 export async function deleteTag(id: string) {
   await db.delete(tags).where(eq(tags.id, id));
   return { success: true };
+}
+
+export async function getAllTags() {
+  return db.select().from(tags);
 } 

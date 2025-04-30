@@ -26,4 +26,8 @@ export async function updateCategory(id: string, input: Partial<Omit<Category, "
 export async function deleteCategory(id: string) {
   await db.delete(categories).where(eq(categories.id, id));
   return { success: true };
+}
+
+export async function getAllCategories() {
+  return db.select().from(categories);
 } 

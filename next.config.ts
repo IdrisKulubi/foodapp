@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  transpilePackages: [
+    '@editorjs/editorjs',
+    '@editorjs/header',
+    '@editorjs/list',
+    '@editorjs/paragraph',
+    '@editorjs/checklist',
+  ],
 };
 
 export default nextConfig;

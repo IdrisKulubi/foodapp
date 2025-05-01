@@ -11,7 +11,8 @@ export async function createRecipe(input: Omit<Recipe, "id" | "createdAt" | "upd
   const parsed = recipeSchema.omit({ id: true, createdAt: true, updatedAt: true }).safeParse(input);
   if (!parsed.success) throw new Error("Invalid recipe data");
   const id = nanoid();
-  const [recipe] = await db.insert(recipes).values({ ...parsed.data, id }).returning();
+  const { authorId, ...rest } = parsed.data; void authorId;
+  const [recipe] = await db.insert(recipes).values({ ...rest, id }).returning();
   return recipe;
 }
 
@@ -76,7 +77,7 @@ export async function getPaginatedRecipes({
 
   // Get total count
   const totalResult = await db.query.recipes.findMany({
-    where: where.length ? (recipes: any, helpers: any) => where.map(fn => fn(recipes, helpers)).reduce((a, b) => (r: any) => a(r, helpers) && b(r, helpers)) : undefined,
+    where: where.length ? (recipes: any, { ilike, or }: any) => where.map(fn => fn(recipes, { ilike, or })).reduce((a, b) => (r: any) => a(r, { ilike, or }) && b(r, { ilike, or })) : undefined,
     columns: { id: true },
   })
   const total = totalResult.length
@@ -84,7 +85,7 @@ export async function getPaginatedRecipes({
   // Fetch paginated recipes
   const orderBy = sort === 'title' ? recipes.title : recipes.createdAt;
   const paginated = await db.query.recipes.findMany({
-    where: where.length ? (recipes: any, helpers: any) => where.map(fn => fn(recipes, helpers)).reduce((a, b) => (r: any) => a(r, helpers) && b(r, helpers)) : undefined,
+    where: where.length ? (recipes: any, { ilike, or }: any) => where.map(fn => fn(recipes, { ilike, or })).reduce((a, b) => (r: any) => a(r, { ilike, or }) && b(r, { ilike, or })) : undefined,
     orderBy: (recipes: any, { asc, desc }: any) => [sortDir === 'asc' ? asc(orderBy) : desc(orderBy)],
     limit: pageSize,
     offset,

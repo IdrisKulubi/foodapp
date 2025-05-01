@@ -79,9 +79,7 @@ export const recipes = pgTable(
   "recipe",
   {
     id: text("id").primaryKey(),
-    authorId: text("author_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+  
     title: text("title").notNull(),
     slug: text("slug").notNull().unique(),
     description: text("description"),
@@ -98,7 +96,6 @@ export const recipes = pgTable(
   },
   (table) => ({
     slugIdx: index("recipe_slug_idx").on(table.slug),
-    authorIdx: index("recipe_author_idx").on(table.authorId),
     createdAtIdx: index("recipe_created_at_idx").on(table.createdAt),
   })
 );

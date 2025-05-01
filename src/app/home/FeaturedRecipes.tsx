@@ -22,7 +22,7 @@ export async function FeaturedRecipes() {
             <div className="relative aspect-video bg-muted">
               {/* Placeholder for image */}
               <Image
-                src={recipe.slug || "/placeholder.jpg"}
+                src={recipe.images?.[0] || "/placeholder.jpg"}
                 alt={recipe.title}
                 fill
                 className="object-cover"

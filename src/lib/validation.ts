@@ -30,6 +30,7 @@ export const recipeSchema = z.object({
   publishedAt: z.date().optional().nullable(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
+  images: z.array(z.string()).optional().default([]),
 });
 export type Recipe = z.infer<typeof recipeSchema>;
 

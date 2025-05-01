@@ -8,11 +8,17 @@ import { eq } from "drizzle-orm";
 import { nanoid } from 'nanoid';
 
 export async function createRecipe(input: Omit<Recipe, "id" | "createdAt" | "updatedAt">) {
+  console.log("[createRecipe] input:", input);
   const parsed = recipeSchema.omit({ id: true, createdAt: true, updatedAt: true }).safeParse(input);
-  if (!parsed.success) throw new Error("Invalid recipe data");
+  if (!parsed.success) {
+    console.error("[createRecipe] validation error:", parsed.error);
+    throw new Error("Invalid recipe data");
+  }
+  console.log("[createRecipe] parsed data:", parsed.data);
   const id = nanoid();
   const { authorId, ...rest } = parsed.data; void authorId;
   const [recipe] = await db.insert(recipes).values({ ...rest, id }).returning();
+  console.log("[createRecipe] inserted recipe:", recipe);
   return recipe;
 }
 
@@ -91,4 +97,21 @@ export async function getPaginatedRecipes({
     offset,
   })
   return { recipes: paginated, total };
+}
+
+/**
+ * Fetch top 6 featured or trending recipes for homepage carousel
+ */
+export async function getFeaturedRecipes() {
+  const featured = await db.query.recipes.findMany({
+    where: (recipe, { eq, or }) =>
+      or(eq(recipe.featured, true), eq(recipe.published, true)),
+    limit: 6,
+    orderBy: (recipe, { desc }) => [desc(recipe.createdAt)],
+  });
+  // Always return images as an array
+  return featured.map(recipe => ({
+    ...recipe,
+    images: Array.isArray(recipe.images) ? recipe.images : [],
+  }));
 } 

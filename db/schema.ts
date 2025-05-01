@@ -6,6 +6,7 @@ import {
   boolean,
   primaryKey,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "@auth/core/adapters";
 
@@ -93,6 +94,7 @@ export const recipes = pgTable(
     publishedAt: timestamp("published_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    images: jsonb("images").$type<string[]>().default([]).notNull(),
   },
   (table) => ({
     slugIdx: index("recipe_slug_idx").on(table.slug),

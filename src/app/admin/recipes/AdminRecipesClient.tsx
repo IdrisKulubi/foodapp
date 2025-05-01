@@ -222,7 +222,7 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
                 <Link href={`/admin/recipes/${recipe.id}`} className="block focus:outline-none focus:ring-2 focus:ring-primary/60">
                   <div className="aspect-[4/2.2] bg-muted flex items-center justify-center">
                     {recipe.images && recipe.images.length > 0 ? (
-                      <Image src={recipe.images[0]} alt={recipe.title} className="object-cover w-full h-full" />
+                      <Image src={recipe.images[0]} alt={recipe.title} className="object-cover w-full h-full" fill />
                     ) : (
                       <span className="text-5xl opacity-30 group-hover:scale-110 transition-transform">🍲</span>
                     )}

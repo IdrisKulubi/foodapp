@@ -15,6 +15,13 @@
       "when": 1746131269566,
       "tag": "0001_public_triton",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1746137763076,
+      "tag": "0002_confused_tarantula",
+      "breakpoints": true
     }
   ]
 }

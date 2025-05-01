@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { motion,  } from 'framer-motion'
 import {Sparkles, FileCheck, Clock, Hash, ChevronRight, ChevronLeft, Eye, Save, PenLine } from "lucide-react"
 import { Card } from '@/components/ui/card'
+import Link from 'next/link'
 
 const EDITOR_JS_TOOLS = {
   header: Header,
@@ -233,20 +234,21 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
 
   return (
     <div className="relative min-h-screen flex items-center justify-center py-8">
-      {/* Decorative background */}
       <div className="pointer-events-none select-none fixed inset-0 z-0">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute top-1/2 right-0 w-80 h-80 bg-secondary/20 rounded-full blur-2xl" />
         <div className="absolute bottom-0 left-1/2 w-96 h-40 bg-muted/30 rounded-full blur-2xl" />
       </div>
       <div className="relative z-10 w-full max-w-3xl mx-auto pb-20">
+        <Link href="/admin" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition mb-4">
+          <ChevronLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Link>
         <h1 className="text-2xl font-bold mb-6">Create New Recipe</h1>
 
-        {/* Alerts - shown on all steps */}
         {error && <div className="text-destructive bg-destructive/10 p-3 rounded mb-4" role="alert">{error}</div>}
         {success && <div className="text-green-600 bg-green-50 p-3 rounded mb-4" role="status">{success}</div>}
 
-        {/* Progress indicator - Mobile */}
         <div className="md:hidden mb-6">
           <div className="text-center mb-2">
             <span className="text-sm font-medium text-muted-foreground">
@@ -263,7 +265,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
           </div>
         </div>
 
-        {/* Progress tabs - Desktop */}
         <div className="hidden md:flex mb-6 border-b">
           <div className="flex overflow-x-auto">
             {steps.map((step, index) => (
@@ -288,7 +289,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
           <form onSubmit={e => handleSubmit(e, false)} aria-label="Recipe creation form">
             {activeStep === 0 && (
               <div className="space-y-6">
-                {/* Title */}
                 <div>
                   <label htmlFor={id('title')} className="block font-medium mb-1">Title</label>
                   <Input
@@ -328,12 +328,9 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
               </div>
             )}
 
-            {/* Step 2: Recipe Details */}
             {activeStep === 1 && (
               <div className="space-y-6">
-                {/* Time fields in a grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Prep Time */}
                   <div>
                     <label htmlFor={id('prepTime')} className="block font-medium mb-1">Prep Time (min)</label>
                     <Input
@@ -348,7 +345,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                     />
                     {fieldErrors.prepTime && <div id={id('prepTime-error')} className="text-destructive text-sm mt-1">{fieldErrors.prepTime}</div>}
                   </div>
-                  {/* Cook Time */}
                   <div>
                     <label htmlFor={id('cookTime')} className="block font-medium mb-1">Cook Time (min)</label>
                     <Input
@@ -363,7 +359,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                     />
                     {fieldErrors.cookTime && <div id={id('cookTime-error')} className="text-destructive text-sm mt-1">{fieldErrors.cookTime}</div>}
                   </div>
-                  {/* Total Time */}
                   <div>
                     <label htmlFor={id('totalTime')} className="block font-medium mb-1">Total Time (min)</label>
                     <Input
@@ -379,7 +374,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                     {fieldErrors.totalTime && <div id={id('totalTime-error')} className="text-destructive text-sm mt-1">{fieldErrors.totalTime}</div>}
                   </div>
                 </div>
-                {/* Servings */}
                 <div>
                   <label htmlFor={id('servings')} className="block font-medium mb-1">Servings</label>
                   <Input
@@ -409,9 +403,7 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                   </Select>
                   {fieldErrors.difficultyLevel && <div id={id('difficultyLevel-error')} className="text-destructive text-sm mt-1">{fieldErrors.difficultyLevel}</div>}
                 </div>
-                {/* Visibility & Featuring */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Featured */}
                   <div className="flex items-center gap-2 bg-muted/40 p-3 rounded-lg">
                     <Checkbox checked={featured} onCheckedChange={checked => setFeatured(!!checked)} id={id('featured')} aria-checked={featured} />
                     <div>
@@ -419,7 +411,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                       <p className="text-xs text-muted-foreground">Highlight this recipe on home pages</p>
                     </div>
                   </div>
-                  {/* Published */}
                   <div className="flex items-center gap-2 bg-muted/40 p-3 rounded-lg">
                     <Checkbox checked={published} onCheckedChange={checked => setPublished(!!checked)} id={id('published')} aria-checked={published} />
                     <div>
@@ -431,10 +422,8 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
               </div>
             )}
 
-            {/* Step 3: Organization (Categories & Tags) */}
             {activeStep === 2 && (
               <div className="space-y-6">
-                {/* Categories Multi-select */}
                 <div>
                   <label className="block font-medium mb-1">Categories</label>
                   <Command className="bg-background border rounded-md" aria-label="Select categories">
@@ -467,7 +456,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                     )}
                   </div>
                 </div>
-                {/* Tags Multi-select */}
                 <div>
                   <label className="block font-medium mb-1">Tags</label>
                   <Command className="bg-background border rounded-md" aria-label="Select tags">
@@ -503,10 +491,8 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
               </div>
             )}
 
-            {/* Step 4: Content & Images */}
             {activeStep === 3 && (
               <div className="space-y-6">
-                {/* Recipe Content (Editor.js) */}
                 <div>
                   <label className="block font-medium mb-1">Recipe Content</label>
                   <p className="text-sm text-muted-foreground mb-3">Write your recipe steps, ingredients, and instructions</p>
@@ -521,7 +507,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                     />
                   </div>
                 </div>
-                {/* Image Upload */}
                 <div>
                   <label className="block font-medium mb-1">Images</label>
                   <p className="text-sm text-muted-foreground mb-3">Upload high-quality images for your recipe. The first image will be the main image.</p>
@@ -559,7 +544,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
               </div>
             )}
 
-            {/* Step 5: Preview & Publish */}
             {activeStep === 4 && (
               <div className="space-y-6">
                 <motion.div
@@ -570,7 +554,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                   className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden animate-in fade-in"
                   aria-live="polite"
                 >
-                  {/* Banner image */}
                   <div className="aspect-[4/2.2] bg-muted flex items-center justify-center relative">
                     {images && images.length > 0 ? (
                       <Image src={images[0]} alt={title || 'Recipe image'} className="object-cover w-full h-full" width={800} height={400} />

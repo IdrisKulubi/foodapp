@@ -7,9 +7,9 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-background">
       <Sidebar />
-      <main className="flex-1 p-8 bg-background min-h-screen pt-20 md:pt-8 pb-20 md:pb-8">
+      <main className="flex-1 p-4 md:p-8 min-h-screen pt-24 lg:pt-8">
         {children}
       </main>
     </div>

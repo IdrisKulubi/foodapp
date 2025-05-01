@@ -22,6 +22,7 @@ export function AddTagDialog({ open, onOpenChange, onCreated }: { open: boolean,
         setSlug('')
         onOpenChange(false)
         onCreated?.()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError(err.message || 'Failed to create tag')
       }

@@ -33,7 +33,7 @@ export default function EditCategoryDialog({ open, onOpenChange, category, onUpd
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
-    setErrors(e => ({ ...e, [e.target.name]: undefined }))
+    setErrors(prev => ({ ...prev, [e.target.name]: undefined }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,20 +41,18 @@ export default function EditCategoryDialog({ open, onOpenChange, category, onUpd
     if (!category) return
     const result = schema.safeParse(form)
     if (!result.success) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setErrors(result.error.flatten().fieldErrors as any)
       return
     }
     setLoading(true)
     try {
-      const res = await updateCategory({ id: category.id, ...result.data })
-      if (res?.error) {
-        setErrors({ form: res.error })
-      } else {
-        setErrors({})
-        onOpenChange(false)
-        onUpdated()
-      }
+      await updateCategory(category.id, result.data)
+      setErrors({})
+      onOpenChange(false)
+      onUpdated()
     } catch (err) {
+      console.error(err)
       setErrors({ form: 'Something went wrong.' })
     } finally {
       setLoading(false)
@@ -94,7 +92,9 @@ export default function EditCategoryDialog({ open, onOpenChange, category, onUpd
           {errors.form && <div className="text-destructive text-xs mt-1">{errors.form}</div>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-            <Button type="submit" variant="default" loading={loading} disabled={loading}>Save</Button>
+            <Button type="submit" variant="default" disabled={loading}>
+              {loading ? 'Saving...' : 'Save'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

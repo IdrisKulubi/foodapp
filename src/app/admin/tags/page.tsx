@@ -41,7 +41,7 @@ export default function AdminTagsPageWrapper() {
       return (prev ? tags.length : 0) + newTags.length < total
     })
     setLoading(false)
-  }, [page, pageSize, debouncedSearch])
+  }, [page, debouncedSearch, tags.length])
 
   // Reset on search
   React.useEffect(() => {

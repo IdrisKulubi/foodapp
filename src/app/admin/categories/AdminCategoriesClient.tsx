@@ -48,7 +48,7 @@ export default function AdminCategoriesClient() {
     setCategories(prev => reset ? newCategories : [...prev, ...newCategories])
     setHasMore(reset ? newCategories.length < total : (categories.length + newCategories.length) < total)
     setLoading(false)
-  }, [page, search, sort, sortDir])
+  }, [categories.length, page, search, sort, sortDir])
 
   // Initial load
   useEffect(() => {

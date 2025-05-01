@@ -1,24 +1,35 @@
 import AdminRecipesClient from './AdminRecipesClient'
 
-interface AdminRecipesPageProps {
-  searchParams: {
-    page?: string
-    pageSize?: string
-    sort?: 'createdAt' | 'title'
-    sortDir?: 'asc' | 'desc'
-    search?: string
-    filter?: 'all' | 'published' | 'draft' | 'featured'
-  }
-}
+// Use the current Next.js app router conventions
+type FilterType = 'all' | 'published' | 'draft' | 'featured'
+type SortType = 'createdAt' | 'title'
+type SortDirType = 'asc' | 'desc'
 
-export default function AdminRecipesPage({ searchParams }: AdminRecipesPageProps) {
-  // Pass only search/filter/sort params; client will handle fetching and infinite scroll
-  return <AdminRecipesClient
-    page={Number(searchParams.page) > 0 ? Number(searchParams.page) : 1}
-    pageSize={Number(searchParams.pageSize) > 0 ? Number(searchParams.pageSize) : 12}
-    sort={searchParams.sort === 'title' ? 'title' : 'createdAt'}
-    sortDir={searchParams.sortDir === 'asc' ? 'asc' : 'desc'}
-    search={searchParams.search ?? ''}
-    filter={searchParams.filter ?? 'all'}
-  />
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
+
+export default async function AdminRecipesPage(props: { searchParams: SearchParams }) {
+  const searchParams = await props.searchParams
+
+  // Parse page and pageSize with fallbacks
+  const page = Math.max(1, Number(searchParams.page) || 1)
+  const pageSize = Math.max(1, Number(searchParams.pageSize) || 12)
+  
+  // Parse other parameters with type safety
+  const sort = (searchParams.sort === 'title' ? 'title' : 'createdAt') as SortType
+  const sortDir = (searchParams.sortDir === 'asc' ? 'asc' : 'desc') as SortDirType
+  const search = typeof searchParams.search === 'string' ? searchParams.search : ''
+  const filter = ['all', 'published', 'draft', 'featured'].includes(searchParams.filter as string) 
+    ? (searchParams.filter as FilterType) 
+    : 'all'
+
+  return (
+    <AdminRecipesClient
+      page={page}
+      pageSize={pageSize}
+      sort={sort}
+      sortDir={sortDir}
+      search={search}
+      filter={filter}
+    />
+  )
 } 

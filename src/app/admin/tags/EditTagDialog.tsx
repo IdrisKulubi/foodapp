@@ -29,6 +29,7 @@ export function EditTagDialog({ open, onOpenChange, tag, onUpdated }: { open: bo
         await updateTag(tag.id, { name, slug })
         onOpenChange(false)
         onUpdated?.()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError(err.message || 'Failed to update tag')
       }

@@ -36,9 +36,12 @@ export default function AdminTagsPageWrapper() {
     setLoading(true)
     const { tags: newTags, total } = await getPaginatedTags({ page: reset ? 1 : page, pageSize, search: debouncedSearch })
     setTags(prev => reset ? newTags : [...prev, ...newTags])
-    setHasMore(reset ? newTags.length < total : (tags.length + newTags.length) < total)
+    setHasMore(prev => {
+      if (reset) return newTags.length < total
+      return (prev ? tags.length : 0) + newTags.length < total
+    })
     setLoading(false)
-  }, [page, pageSize, debouncedSearch, tags.length])
+  }, [page, pageSize, debouncedSearch])
 
   // Reset on search
   React.useEffect(() => {
@@ -46,13 +49,13 @@ export default function AdminTagsPageWrapper() {
     setTags([])
     setHasMore(true)
     fetchTags(true)
-  }, [debouncedSearch])
+  }, [debouncedSearch, fetchTags])
 
   // Fetch more on page change
   React.useEffect(() => {
     if (page === 1) return
     fetchTags()
-  }, [page])
+  }, [page, fetchTags])
 
   // Initial load
   React.useEffect(() => {
@@ -73,7 +76,6 @@ export default function AdminTagsPageWrapper() {
     return () => observer.disconnect()
   }, [hasMore, loading])
 
-  // Set indeterminate state for select all checkbox
   useEffect(() => {
     if (selectAllRef.current) {
       selectAllRef.current.indeterminate = someSelected

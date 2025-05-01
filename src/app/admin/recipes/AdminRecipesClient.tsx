@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { motion, AnimatePresence } from 'framer-motion'
-import { deleteRecipe } from '@/lib/actions/recipe.actions'
+import { deleteRecipe, getPaginatedRecipes } from '@/lib/actions/recipe.actions'
 import Image from 'next/image'
 
 interface Recipe {
@@ -20,8 +20,6 @@ interface Recipe {
 }
 
 interface AdminRecipesClientProps {
-  recipes: Recipe[]
-  total: number
   page: number
   pageSize: number
   sort: 'createdAt' | 'title'
@@ -39,79 +37,62 @@ function buildPageUrl({ page, pageSize, sort, sortDir }: { page: number; pageSiz
   return `?${params.toString()}`
 }
 
-function PaginationControls({ page, pageSize, total, sort, sortDir }: { page: number; pageSize: number; total: number; sort: 'createdAt' | 'title'; sortDir: 'asc' | 'desc' }) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const maxPageButtons = 5
-  let startPage = Math.max(1, page - Math.floor(maxPageButtons / 2))
-  let endPage = startPage + maxPageButtons - 1
-  if (endPage > totalPages) {
-    endPage = totalPages
-    startPage = Math.max(1, endPage - maxPageButtons + 1)
-  }
-  const pageNumbers = []
-  for (let i = startPage; i <= endPage; i++) pageNumbers.push(i)
-
-  return (
-    <nav className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-8" aria-label="Pagination">
-      <div className="flex items-center gap-2">
-        <Link
-          href={buildPageUrl({ page: page - 1, pageSize, sort, sortDir })}
-          aria-label="Previous page"
-          className="px-3 py-1 rounded border bg-background disabled:opacity-50"
-          tabIndex={page === 1 ? -1 : 0}
-          aria-disabled={page === 1}
-          prefetch={false}
-        >
-          Prev
-        </Link>
-        {pageNumbers.map(p => (
-          <Link
-            key={p}
-            href={buildPageUrl({ page: p, pageSize, sort, sortDir })}
-            aria-current={p === page ? 'page' : undefined}
-            className={`px-3 py-1 rounded border ${p === page ? 'bg-primary text-primary-foreground font-bold' : 'bg-background'} focus:outline-none focus:ring-2 focus:ring-primary/60`}
-            prefetch={false}
-          >
-            {p}
-          </Link>
-        ))}
-        <Link
-          href={buildPageUrl({ page: page + 1, pageSize, sort, sortDir })}
-          aria-label="Next page"
-          className="px-3 py-1 rounded border bg-background disabled:opacity-50"
-          tabIndex={page === totalPages ? -1 : 0}
-          aria-disabled={page === totalPages}
-          prefetch={false}
-        >
-          Next
-        </Link>
-      </div>
-      <div className="flex items-center gap-2">
-        <label htmlFor="page-size-select" className="text-sm">Rows per page:</label>
-        <select
-          id="page-size-select"
-          className="border rounded px-2 py-1 text-sm bg-background"
-          value={pageSize}
-          onChange={e => {
-            // Use <Link> for accessibility, but fallback to router for instant change
-            window.location.href = buildPageUrl({ page: 1, pageSize: Number(e.target.value), sort, sortDir })
-          }}
-          aria-label="Rows per page"
-        >
-          {[6, 12, 24, 48].map(size => (
-            <option key={size} value={size}>{size}</option>
-          ))}
-        </select>
-        <span className="text-xs text-muted-foreground ml-2">{`Page ${page} of ${totalPages}`}</span>
-      </div>
-    </nav>
-  )
-}
-
-export default function AdminRecipesClient({ recipes, total, page, pageSize, sort, sortDir, search, filter }: AdminRecipesClientProps) {
+export default function AdminRecipesClient({ page: initialPage, pageSize, sort, sortDir, search, filter }: AdminRecipesClientProps) {
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [page, setPage] = useState(initialPage)
+  const [hasMore, setHasMore] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  // Fetch paginated recipes
+  const fetchRecipes = useCallback(async (reset = false) => {
+    setLoading(true)
+    const { recipes: newRecipes, total } = await getPaginatedRecipes({ page: reset ? 1 : page, pageSize, sort, sortDir, search, filter })
+    const safeRecipes = newRecipes.map(r => ({
+      ...r,
+      featured: !!r.featured,
+      published: !!r.published,
+      createdAt: r.createdAt ? String(r.createdAt) : undefined,
+    }))
+    setRecipes(prev => reset ? safeRecipes : [...prev, ...safeRecipes])
+    setHasMore(reset ? safeRecipes.length < total : (recipes.length + safeRecipes.length) < total)
+    setLoading(false)
+  }, [page, pageSize, sort, sortDir, search, filter, recipes.length])
+
+  // Reset on search/filter/sort
+  useEffect(() => {
+    setPage(1)
+    setRecipes([])
+    setHasMore(true)
+    fetchRecipes(true)
+  }, [search, filter, sort, sortDir, pageSize])
+
+  // Fetch more on page change
+  useEffect(() => {
+    if (page === 1) return
+    fetchRecipes()
+  }, [page])
+
+  // Initial load
+  useEffect(() => {
+    fetchRecipes(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!hasMore || loading) return
+    const observer = new window.IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setPage(p => p + 1)
+      }
+    }, { threshold: 1 })
+    if (sentinelRef.current) observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, loading])
 
   const handleDelete = async (id: string) => {
     setDeletingId(id)
@@ -119,27 +100,11 @@ export default function AdminRecipesClient({ recipes, total, page, pageSize, sor
       try {
         await deleteRecipe(id)
         setConfirmId(null)
+        setRecipes(prev => prev.filter(r => r.id !== id))
       } finally {
         setDeletingId(null)
       }
     })
-  }
-
-  function buildPageUrlWithParams(params: Partial<{ page: number; pageSize: number; sort: 'createdAt' | 'title'; sortDir: 'asc' | 'desc'; search: string; filter: string }>) {
-    const url = new URLSearchParams()
-    if (params.page !== undefined) url.set('page', String(params.page))
-    else if (page > 1) url.set('page', String(page))
-    if (params.pageSize !== undefined) url.set('pageSize', String(params.pageSize))
-    else if (pageSize !== 12) url.set('pageSize', String(pageSize))
-    if (params.sort !== undefined) url.set('sort', params.sort)
-    else if (sort !== 'createdAt') url.set('sort', sort)
-    if (params.sortDir !== undefined) url.set('sortDir', params.sortDir)
-    else if (sortDir !== 'desc') url.set('sortDir', sortDir)
-    if (params.search !== undefined) url.set('search', params.search)
-    else if (search) url.set('search', search)
-    if (params.filter !== undefined) url.set('filter', params.filter)
-    else if (filter !== 'all') url.set('filter', filter)
-    return `?${url.toString()}`
   }
 
   return (
@@ -151,7 +116,7 @@ export default function AdminRecipesClient({ recipes, total, page, pageSize, sor
               e.preventDefault();
               const form = e.currentTarget;
               const value = (form.elements.namedItem('search') as HTMLInputElement).value;
-              window.location.href = buildPageUrlWithParams({ page: 1, search: value });
+              window.location.href = buildPageUrl({ page: 1, search: value });
             }}
             className="flex gap-2"
             role="search"
@@ -170,7 +135,7 @@ export default function AdminRecipesClient({ recipes, total, page, pageSize, sor
           <select
             value={filter}
             onChange={e => {
-              window.location.href = buildPageUrlWithParams({ page: 1, filter: e.target.value })
+              window.location.href = buildPageUrl({ page: 1, filter: e.target.value })
             }}
             className="border rounded px-2 py-1 text-sm bg-background"
             aria-label="Filter recipes"
@@ -183,7 +148,7 @@ export default function AdminRecipesClient({ recipes, total, page, pageSize, sor
           <select
             value={sort}
             onChange={e => {
-              window.location.href = buildPageUrlWithParams({ page: 1, sort: e.target.value as 'createdAt' | 'title' })
+              window.location.href = buildPageUrl({ page: 1, sort: e.target.value as 'createdAt' | 'title' })
             }}
             className="border rounded px-2 py-1 text-sm bg-background"
             aria-label="Sort by"
@@ -194,7 +159,7 @@ export default function AdminRecipesClient({ recipes, total, page, pageSize, sor
           <select
             value={sortDir}
             onChange={e => {
-              window.location.href = buildPageUrlWithParams({ page: 1, sortDir: e.target.value as 'asc' | 'desc' })
+              window.location.href = buildPageUrl({ page: 1, sortDir: e.target.value as 'asc' | 'desc' })
             }}
             className="border rounded px-2 py-1 text-sm bg-background"
             aria-label="Sort direction"
@@ -207,7 +172,7 @@ export default function AdminRecipesClient({ recipes, total, page, pageSize, sor
           <Button size="lg" className="shadow-lg">+ Create Recipe</Button>
         </Link>
       </div>
-      {recipes.length === 0 ? (
+      {recipes.length === 0 && !loading ? (
         <div className="flex flex-col items-center justify-center py-24 animate-in fade-in">
           <span className="text-4xl mb-4">🍽️</span>
           <p className="text-lg text-muted-foreground mb-2">No recipes found.</p>
@@ -280,10 +245,20 @@ export default function AdminRecipesClient({ recipes, total, page, pageSize, sor
                 )}
               </motion.div>
             ))}
+            {/* Infinite scroll sentinel */}
+            {hasMore && (
+              <div ref={sentinelRef} className="col-span-full flex justify-center py-6">
+                <span className="animate-spin text-primary w-8 h-8 block">⏳</span>
+              </div>
+            )}
+            {loading && !hasMore && (
+              <div className="col-span-full flex justify-center py-6">
+                <span className="animate-spin text-primary w-8 h-8 block">⏳</span>
+              </div>
+            )}
           </div>
         </AnimatePresence>
       )}
-      <PaginationControls page={page} pageSize={pageSize} total={total} sort={sort} sortDir={sortDir} />
     </div>
   )
 } 

@@ -4,11 +4,12 @@ import db from "../../../db/drizzle";
 import { collections } from "../../../db/schema";
 import { collectionSchema, type Collection } from "../validation";
 import { eq } from "drizzle-orm";
-
+import { nanoid } from 'nanoid';
 export async function createCollection(input: Omit<Collection, "id" | "createdAt" | "updatedAt">) {
   const parsed = collectionSchema.omit({ id: true, createdAt: true, updatedAt: true }).safeParse(input);
   if (!parsed.success) throw new Error("Invalid collection data");
-  const [collection] = await db.insert(collections).values(parsed.data).returning();
+  const id = nanoid();
+  const [collection] = await db.insert(collections).values({ ...parsed.data, id }).returning();
   return collection;
 }
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { nanoid } from "nanoid";
 import db from "../../../db/drizzle";
 import { reviews } from "../../../db/schema";
 import { reviewSchema, type Review } from "../validation";
@@ -8,7 +9,8 @@ import { eq } from "drizzle-orm";
 export async function createReview(input: Omit<Review, "id" | "createdAt" | "updatedAt">) {
   const parsed = reviewSchema.omit({ id: true, createdAt: true, updatedAt: true }).safeParse(input);
   if (!parsed.success) throw new Error("Invalid review data");
-  const [review] = await db.insert(reviews).values(parsed.data).returning();
+  const id = nanoid();
+  const [review] = await db.insert(reviews).values({ ...parsed.data, id }).returning();
   return review;
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useId } from 'react'
+import { useState, useRef, useCallback, useId, JSX } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
@@ -15,6 +15,9 @@ import { UploadDropzone } from '@/utils/uploadthing'
 import { recipeSchema } from '@/lib/validation'
 import { createRecipe } from '@/lib/actions/recipe.actions'
 import Image from 'next/image'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const EDITOR_JS_TOOLS = {
   header: Header,
@@ -162,6 +165,41 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
 
   // Accessibility: generate unique ids for inputs
   const id = (name: string) => `recipe-${name}`
+
+  // Simple Editor.js block renderer for preview
+  function renderEditorJsContent(data?: OutputData) {
+    if (!data || !data.blocks) return <div className="text-muted-foreground">No content</div>;
+    return (
+      <div className="prose prose-neutral max-w-none">
+        {data.blocks.map((block, i) => {
+          switch (block.type) {
+            case 'header':
+              const Tag = `h${block.data.level || 2}` as keyof JSX.IntrinsicElements;
+              return <Tag key={i}>{block.data.text}</Tag>;
+            case 'paragraph':
+              return <p key={i} dangerouslySetInnerHTML={{ __html: block.data.text }} />;
+            case 'list':
+              if (block.data.style === 'ordered') {
+                return <ol key={i}>{block.data.items.map((item: string, idx: number) => <li key={idx} dangerouslySetInnerHTML={{ __html: item }} />)}</ol>;
+              } else {
+                return <ul key={i}>{block.data.items.map((item: string, idx: number) => <li key={idx} dangerouslySetInnerHTML={{ __html: item }} />)}</ul>;
+              }
+            default:
+              return <pre key={i} className="bg-muted p-2 rounded text-xs overflow-x-auto mt-2">{JSON.stringify(block, null, 2)}</pre>;
+          }
+        })}
+      </div>
+    );
+  }
+
+  function Spinner() {
+    return (
+      <svg className="animate-spin mr-2 h-4 w-4 text-white" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle className="opacity-25" cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="2" />
+        <path className="opacity-75" fill="currentColor" d="M15 8a7 7 0 01-7 7V13a5 5 0 005-5h2z" />
+      </svg>
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -398,48 +436,88 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
         </div>
         {/* Form Actions */}
         <div className="flex gap-2">
-          <button type="submit" className="btn btn-primary" disabled={loading} aria-label="Save Recipe">
+          <Button type="submit" variant="default" disabled={loading} aria-label="Save Recipe" aria-busy={loading}>
+            {loading && <Spinner />}
             {loading ? 'Saving...' : 'Save Recipe'}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={e => handleSubmit(e as React.FormEvent, true)} disabled={loading} aria-label="Save as Draft">
+          </Button>
+          <Button type="button" variant="secondary" onClick={e => handleSubmit(e as React.FormEvent, true)} disabled={loading} aria-label="Save as Draft" aria-busy={loading}>
+            {loading && <Spinner />}
             Save as Draft
-          </button>
-          <button type="button" className="btn btn-outline" onClick={() => setPreview(p => !p)} aria-pressed={preview} aria-label="Preview Recipe">
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setPreview(p => !p)} aria-pressed={preview} aria-label="Preview Recipe">
             {preview ? 'Hide Preview' : 'Preview'}
-          </button>
+          </Button>
         </div>
       </form>
       {/* Preview Mode */}
-      {preview && (
-        <div className="mt-8 border rounded bg-muted p-6" aria-live="polite">
-          <h2 className="text-xl font-bold mb-2">Preview</h2>
-          <div className="mb-2"><strong>Title:</strong> {title}</div>
-          <div className="mb-2"><strong>Slug:</strong> {slug}</div>
-          <div className="mb-2"><strong>Description:</strong> {description}</div>
-          <div className="mb-2"><strong>Prep Time:</strong> {prepTime} min</div>
-          <div className="mb-2"><strong>Cook Time:</strong> {cookTime} min</div>
-          <div className="mb-2"><strong>Total Time:</strong> {totalTime} min</div>
-          <div className="mb-2"><strong>Servings:</strong> {servings}</div>
-          <div className="mb-2"><strong>Difficulty:</strong> {difficultyLevel}</div>
-          <div className="mb-2"><strong>Featured:</strong> {featured ? 'Yes' : 'No'}</div>
-          <div className="mb-2"><strong>Published:</strong> {published ? 'Yes' : 'No'}</div>
-          <div className="mb-2"><strong>Categories:</strong> {selectedCategories.map(c => c.name).join(', ')}</div>
-          <div className="mb-2"><strong>Tags:</strong> {selectedTags.map(t => t.name).join(', ')}</div>
-          <div className="mb-2"><strong>Images:</strong>
-            <div className="flex gap-2 mt-1">
-              {images.map(url => (
-                <Image key={url} src={url} alt="Preview" className="w-16 h-16 object-cover rounded border" 
-                width={64}
-                height={64}
-                />
-              ))}
+      <AnimatePresence>
+        {preview && (
+          <motion.div
+            key="preview-card"
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 32 }}
+            transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+            className="mt-8 max-w-2xl mx-auto bg-card rounded-2xl shadow-xl border border-border overflow-hidden animate-in fade-in"
+            aria-live="polite"
+          >
+            {/* Banner image */}
+            <div className="aspect-[4/2.2] bg-muted flex items-center justify-center relative">
+              {images && images.length > 0 ? (
+                <Image src={images[0]} alt={title || 'Recipe image'} className="object-cover w-full h-full" width={800} height={400} />
+              ) : (
+                <span className="text-6xl opacity-20">🍲</span>
+              )}
+              {featured && (
+                <Badge variant="default" className="absolute top-4 left-4 z-10">Featured</Badge>
+              )}
+              {published ? (
+                <Badge variant="outline" className="absolute top-4 right-4 z-10">Published</Badge>
+              ) : (
+                <Badge variant="secondary" className="absolute top-4 right-4 z-10">Draft</Badge>
+              )}
             </div>
-          </div>
-          <div className="mb-2"><strong>Recipe Content (JSON):</strong>
-            <pre className="bg-background p-2 rounded text-xs overflow-x-auto mt-2">{JSON.stringify(editorData, null, 2)}</pre>
-          </div>
-        </div>
-      )}
+            <div className="p-6 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold flex-1 truncate group-hover:text-primary transition-colors">{title || <span className="text-muted-foreground">Untitled</span>}</h2>
+                <span className="text-xs text-muted-foreground">/{slug || 'slug'}</span>
+              </div>
+              <div className="text-base text-muted-foreground mb-2">{description}</div>
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-2">
+                <span>Prep: <span className="font-medium text-foreground">{prepTime || '--'} min</span></span>
+                <span>Cook: <span className="font-medium text-foreground">{cookTime || '--'} min</span></span>
+                <span>Total: <span className="font-medium text-foreground">{totalTime || '--'} min</span></span>
+                <span>Servings: <span className="font-medium text-foreground">{servings || '--'}</span></span>
+                <span>Difficulty: <span className="font-medium text-foreground capitalize">{difficultyLevel || '--'}</span></span>
+              </div>
+              {selectedCategories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedCategories.map(cat => (
+                    <Badge key={cat.id} variant="secondary">{cat.name}</Badge>
+                  ))}
+                </div>
+              )}
+              {selectedTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedTags.map(tag => (
+                    <Badge key={tag.id} variant="outline">{tag.name}</Badge>
+                  ))}
+                </div>
+              )}
+              <div className="prose prose-neutral max-w-none mt-4 animate-in fade-in">
+                {renderEditorJsContent(editorData)}
+              </div>
+              {images.length > 1 && (
+                <div className="flex gap-2 mt-4">
+                  {images.slice(1).map((url) => (
+                    <Image key={url} src={url} alt="Preview" className="w-20 h-20 object-cover rounded border" width={80} height={80} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 } 

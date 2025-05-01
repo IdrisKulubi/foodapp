@@ -1,14 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import db from "../../../db/drizzle";
 import { recipes } from "../../../db/schema";
 import { recipeSchema, type Recipe } from "../validation";
-import { eq, count, asc, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { nanoid } from 'nanoid';
 
 export async function createRecipe(input: Omit<Recipe, "id" | "createdAt" | "updatedAt">) {
   const parsed = recipeSchema.omit({ id: true, createdAt: true, updatedAt: true }).safeParse(input);
   if (!parsed.success) throw new Error("Invalid recipe data");
-  const [recipe] = await db.insert(recipes).values(parsed.data).returning();
+  const id = nanoid();
+  const [recipe] = await db.insert(recipes).values({ ...parsed.data, id }).returning();
   return recipe;
 }
 

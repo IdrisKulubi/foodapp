@@ -4,11 +4,12 @@ import db from "../../../db/drizzle";
 import { categories } from "../../../db/schema";
 import { categorySchema, type Category } from "../validation";
 import { eq } from "drizzle-orm";
-
+import { nanoid } from 'nanoid';
 export async function createCategory(input: Omit<Category, "id">) {
   const parsed = categorySchema.omit({ id: true }).safeParse(input);
   if (!parsed.success) throw new Error("Invalid category data");
-  const [category] = await db.insert(categories).values(parsed.data).returning();
+  const id = nanoid();
+  const [category] = await db.insert(categories).values({ ...parsed.data, id }).returning();
   return category;
 }
 

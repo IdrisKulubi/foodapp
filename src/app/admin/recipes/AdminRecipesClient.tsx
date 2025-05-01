@@ -28,12 +28,14 @@ interface AdminRecipesClientProps {
   filter: 'all' | 'published' | 'draft' | 'featured'
 }
 
-function buildPageUrl({ page, pageSize, sort, sortDir }: { page: number; pageSize: number; sort: 'createdAt' | 'title'; sortDir: 'asc' | 'desc' }) {
+function buildPageUrl({ page, pageSize, sort, sortDir, search, filter }: { page: number; pageSize: number; sort: 'createdAt' | 'title'; sortDir: 'asc' | 'desc'; search?: string; filter?: string }) {
   const params = new URLSearchParams()
   if (page > 1) params.set('page', String(page))
   if (pageSize !== 12) params.set('pageSize', String(pageSize))
   if (sort !== 'createdAt') params.set('sort', sort)
   if (sortDir !== 'desc') params.set('sortDir', sortDir)
+  if (search) params.set('search', search)
+  if (filter && filter !== 'all') params.set('filter', filter)
   return `?${params.toString()}`
 }
 
@@ -68,13 +70,13 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
     setRecipes([])
     setHasMore(true)
     fetchRecipes(true)
-  }, [search, filter, sort, sortDir, pageSize])
+  }, [search, filter, sort, sortDir, pageSize, fetchRecipes])
 
   // Fetch more on page change
   useEffect(() => {
     if (page === 1) return
     fetchRecipes()
-  }, [page])
+  }, [page, fetchRecipes])
 
   // Initial load
   useEffect(() => {
@@ -116,7 +118,14 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
               e.preventDefault();
               const form = e.currentTarget;
               const value = (form.elements.namedItem('search') as HTMLInputElement).value;
-              window.location.href = buildPageUrl({ page: 1, search: value });
+              window.location.href = buildPageUrl({
+                page: 1,
+                pageSize,
+                sort,
+                sortDir,
+                search: value,
+                filter
+              });
             }}
             className="flex gap-2"
             role="search"
@@ -135,7 +144,14 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
           <select
             value={filter}
             onChange={e => {
-              window.location.href = buildPageUrl({ page: 1, filter: e.target.value })
+              window.location.href = buildPageUrl({
+                page: 1,
+                pageSize,
+                sort,
+                sortDir,
+                search,
+                filter: e.target.value
+              })
             }}
             className="border rounded px-2 py-1 text-sm bg-background"
             aria-label="Filter recipes"
@@ -148,7 +164,14 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
           <select
             value={sort}
             onChange={e => {
-              window.location.href = buildPageUrl({ page: 1, sort: e.target.value as 'createdAt' | 'title' })
+              window.location.href = buildPageUrl({
+                page: 1,
+                pageSize,
+                sort: e.target.value as 'createdAt' | 'title',
+                sortDir,
+                search,
+                filter
+              })
             }}
             className="border rounded px-2 py-1 text-sm bg-background"
             aria-label="Sort by"
@@ -159,7 +182,14 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
           <select
             value={sortDir}
             onChange={e => {
-              window.location.href = buildPageUrl({ page: 1, sortDir: e.target.value as 'asc' | 'desc' })
+              window.location.href = buildPageUrl({
+                page: 1,
+                pageSize,
+                sort,
+                sortDir: e.target.value as 'asc' | 'desc',
+                search,
+                filter
+              })
             }}
             className="border rounded px-2 py-1 text-sm bg-background"
             aria-label="Sort direction"

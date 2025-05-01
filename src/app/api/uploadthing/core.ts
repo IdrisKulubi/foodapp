@@ -3,7 +3,8 @@ import { UploadThingError } from "uploadthing/server";
 
 const f = createUploadthing();
 
-const auth = (req: Request) => ({ id: "fakeId" }); // Replace with real auth
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const auth = (req: Request) => ({ id: "fakeId" }); //I will Replace with real auth
 
 export const ourFileRouter = {
   imageUploader: f({ image: { maxFileSize: "4MB" } })

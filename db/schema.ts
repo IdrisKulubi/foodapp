@@ -90,6 +90,7 @@ export const recipes = pgTable(
     servings: integer("servings"),
     difficultyLevel: text("difficulty_level"),
     featured: boolean("featured").default(false),
+    trending: boolean("trending").default(false),
     published: boolean("published").default(false),
     publishedAt: timestamp("published_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

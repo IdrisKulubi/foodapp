@@ -26,6 +26,7 @@ export const recipeSchema = z.object({
   servings: z.number().int().positive().optional().nullable(),
   difficultyLevel: z.string().optional().nullable(),
   featured: z.boolean().optional(),
+  trending: z.boolean().optional(),
   published: z.boolean().optional(),
   publishedAt: z.date().optional().nullable(),
   createdAt: z.date().optional(),

@@ -68,34 +68,41 @@ export async function getPaginatedRecipes({
   filter?: 'all' | 'published' | 'draft' | 'featured'
 }) {
   const offset = (page - 1) * pageSize;
-  // Build where clause
-  const where: any[] = []
-  if (search) {
-    const s = `%${search.toLowerCase()}%`
-    where.push(
-      (recipes: any, { ilike, or }: any) =>
-        or(ilike(recipes.title, s), ilike(recipes.slug, s))
-    )
-  }
-  if (filter === 'published') where.push((recipes: any, { eq }: any) => eq(recipes.published, true))
-  if (filter === 'draft') where.push((recipes: any, { eq }: any) => eq(recipes.published, false))
-  if (filter === 'featured') where.push((recipes: any, { eq }: any) => eq(recipes.featured, true))
+
+  const where = (recipes: any, { ilike, or, eq }: any) => {
+    const conditions = [];
+    if (search) {
+      const s = `%${search.toLowerCase()}%`;
+      conditions.push(or(ilike(recipes.title, s), ilike(recipes.slug, s)));
+    }
+    if (filter === 'published') conditions.push(eq(recipes.published, true));
+    if (filter === 'draft') conditions.push(eq(recipes.published, false));
+    if (filter === 'featured') conditions.push(eq(recipes.featured, true));
+    // Add more filters as needed
+
+    // Combine all conditions with AND
+    if (conditions.length === 0) return undefined;
+    if (conditions.length === 1) return conditions[0];
+    return conditions.reduce((a, b) => a && b);
+  };
+
+  const whereClause = where;
 
   // Get total count
   const totalResult = await db.query.recipes.findMany({
-    where: where.length ? (recipes: any, { ilike, or }: any) => where.map(fn => fn(recipes, { ilike, or })).reduce((a, b) => (r: any) => a(r, { ilike, or }) && b(r, { ilike, or })) : undefined,
+    where: whereClause,
     columns: { id: true },
-  })
-  const total = totalResult.length
+  });
+  const total = totalResult.length;
 
   // Fetch paginated recipes
   const orderBy = sort === 'title' ? recipes.title : recipes.createdAt;
   const paginated = await db.query.recipes.findMany({
-    where: where.length ? (recipes: any, { ilike, or }: any) => where.map(fn => fn(recipes, { ilike, or })).reduce((a, b) => (r: any) => a(r, { ilike, or }) && b(r, { ilike, or })) : undefined,
+    where: whereClause,
     orderBy: (recipes: any, { asc, desc }: any) => [sortDir === 'asc' ? asc(orderBy) : desc(orderBy)],
     limit: pageSize,
     offset,
-  })
+  });
   return { recipes: paginated, total };
 }
 
@@ -114,4 +121,30 @@ export async function getFeaturedRecipes() {
     ...recipe,
     images: Array.isArray(recipe.images) ? recipe.images : [],
   }));
+}
+
+export async function getTrendingRecipes(limit = 12) {
+  return db.query.recipes.findMany({
+    where: (recipe, { eq }) => eq(recipe.trending, true),
+    orderBy: (recipe, { desc }) => [desc(recipe.createdAt)],
+    limit,
+  });
+}
+
+export async function getMostSavedRecipes(limit = 12) {
+  // Interpolate limit directly (safe, not user input)
+  const result = await db.execute(
+    `SELECT r.*, COUNT(sr.recipe_id) as saves
+     FROM recipe r
+     JOIN saved_recipe sr ON r.id = sr.recipe_id
+     GROUP BY r.id
+     ORDER BY saves DESC, r.created_at DESC
+     LIMIT ${limit}`
+  );
+  return result.rows;
+}
+
+export async function setRecipeTrending(id: string, trending: boolean) {
+  const [recipe] = await db.update(recipes).set({ trending }).where(eq(recipes.id, id)).returning();
+  return recipe;
 } 

@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import type { OutputData } from '@editorjs/editorjs';
+import type { ToolName } from './EditorWrapper';
 
 // Import EditorWrapper with SSR disabled
 const EditorWrapper = dynamic(() => import('./EditorWrapper'), {
@@ -11,7 +12,7 @@ const EditorWrapper = dynamic(() => import('./EditorWrapper'), {
 
 interface DynamicEditorProps {
   holderId: string;
-  tools: Record<string, any>;
+  tools: ToolName[];
   onChange?: (data: OutputData) => void;
   initialData?: OutputData;
   debug?: boolean;

@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import EditorJS from '@editorjs/editorjs';
 import type { OutputData } from '@editorjs/editorjs';
 
-type ToolName = 'paragraph' | 'header' | 'list' | 'checklist';
+export type ToolName = 'paragraph' | 'header' | 'list' | 'checklist';
 interface EditorWrapperProps {
   holderId: string;
   tools: ToolName[];
@@ -52,6 +52,7 @@ export default function EditorWrapper({
 
     // Dynamically import tools
     (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const toolMap: Record<string, any> = {};
       for (const tool of tools) {
         switch (tool) {
@@ -118,7 +119,7 @@ export default function EditorWrapper({
       });
       editorInstance.current = editor;
     })();
-  }, [holderId, tools, initialData, onChange]);
+  }, [holderId, tools, initialData, onChange, debug]);
 
   // Return nothing - we're just initializing EditorJS
   return null;

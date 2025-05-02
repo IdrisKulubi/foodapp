@@ -6,6 +6,7 @@ import {
   boolean,
   primaryKey,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "@auth/core/adapters";
 
@@ -79,9 +80,7 @@ export const recipes = pgTable(
   "recipe",
   {
     id: text("id").primaryKey(),
-    authorId: text("author_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+  
     title: text("title").notNull(),
     slug: text("slug").notNull().unique(),
     description: text("description"),
@@ -91,14 +90,15 @@ export const recipes = pgTable(
     servings: integer("servings"),
     difficultyLevel: text("difficulty_level"),
     featured: boolean("featured").default(false),
+    trending: boolean("trending").default(false),
     published: boolean("published").default(false),
     publishedAt: timestamp("published_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    images: jsonb("images").$type<string[]>().default([]).notNull(),
   },
   (table) => ({
     slugIdx: index("recipe_slug_idx").on(table.slug),
-    authorIdx: index("recipe_author_idx").on(table.authorId),
     createdAtIdx: index("recipe_created_at_idx").on(table.createdAt),
   })
 );

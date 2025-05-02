@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { motion, AnimatePresence } from 'framer-motion'
-import { deleteRecipe, getPaginatedRecipes } from '@/lib/actions/recipe.actions'
+import { deleteRecipe, getPaginatedRecipes, setRecipeTrending } from '@/lib/actions/recipe.actions'
 import Image from 'next/image'
+import { Switch } from '@/components/ui/switch'
 
 interface Recipe {
   id: string
@@ -17,6 +18,7 @@ interface Recipe {
   published?: boolean
   images?: string[]
   createdAt?: string
+  trending?: boolean
 }
 
 interface AdminRecipesClientProps {
@@ -58,6 +60,7 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
       featured: !!r.featured,
       published: !!r.published,
       createdAt: r.createdAt ? String(r.createdAt) : undefined,
+      trending: r.trending ?? false,
     }))
     setRecipes(prev => reset ? safeRecipes : [...prev, ...safeRecipes])
     setHasMore(reset ? safeRecipes.length < total : (recipes.length + safeRecipes.length) < total)
@@ -222,7 +225,7 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
                 <Link href={`/admin/recipes/${recipe.id}`} className="block focus:outline-none focus:ring-2 focus:ring-primary/60">
                   <div className="aspect-[4/2.2] bg-muted flex items-center justify-center">
                     {recipe.images && recipe.images.length > 0 ? (
-                      <Image src={recipe.images[0]} alt={recipe.title} className="object-cover w-full h-full" />
+                      <Image src={recipe.images[0]} alt={recipe.title} className="object-cover w-full h-full" fill />
                     ) : (
                       <span className="text-5xl opacity-30 group-hover:scale-110 transition-transform">🍲</span>
                     )}
@@ -231,13 +234,30 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
                     <div className="flex items-center gap-2">
                       <h2 className="text-lg font-semibold truncate flex-1 group-hover:text-primary transition-colors">{recipe.title}</h2>
                       {recipe.featured && <Badge variant="default">Featured</Badge>}
+                      {recipe.trending && <Badge variant="secondary">Trending</Badge>}
                       {recipe.published ? (
                         <Badge variant="outline">Published</Badge>
                       ) : (
                         <Badge variant="secondary">Draft</Badge>
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">/{recipe.slug}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-muted-foreground truncate flex-1">/{recipe.slug}</span>
+                      <Switch
+                        checked={!!recipe.trending}
+                        onCheckedChange={async (checked) => {
+                          const updated = await setRecipeTrending(recipe.id, checked)
+                          setRecipes(prev =>
+                            prev.map(r =>
+                              r.id === recipe.id
+                                ? { ...r, trending: !!updated.trending }
+                                : r
+                            )
+                          )
+                        }}
+                        aria-label={recipe.trending ? 'Unmark as trending' : 'Mark as trending'}
+                      />
+                    </div>
                   </div>
                 </Link>
                 <div className="absolute top-2 right-2 flex gap-2 z-10">

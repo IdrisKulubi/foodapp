@@ -1,14 +1,11 @@
 "use client"
 
-import { useState, useRef, useCallback, useId, JSX } from 'react'
+import { useState, useId, JSX } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Command, CommandInput, CommandList, CommandItem } from '@/components/ui/command'
-import Header from '@editorjs/header'
-import List from '@editorjs/list'
-import { createReactEditorJS } from 'react-editor-js'
 import type { OutputData } from '@editorjs/editorjs'
 import type { Category, Tag } from '@/lib/validation'
 import { UploadDropzone } from '@/utils/uploadthing'
@@ -21,13 +18,7 @@ import { motion,  } from 'framer-motion'
 import {Sparkles, FileCheck, Clock, Hash, ChevronRight, ChevronLeft, Eye, Save, PenLine } from "lucide-react"
 import { Card } from '@/components/ui/card'
 import Link from 'next/link'
-
-const EDITOR_JS_TOOLS = {
-  header: Header,
-  list: List,
-}
-
-const ReactEditorJS = createReactEditorJS()
+import DynamicEditor from './DynamicEditor'
 
 interface RecipeEditorClientProps {
   categories: Category[]
@@ -49,7 +40,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([])
   const [selectedTags, setSelectedTags] = useState<Tag[]>([])
   const [editorData, setEditorData] = useState<OutputData | undefined>(undefined)
-  const editorCore = useRef<{ save: () => Promise<OutputData> } | null>(null)
   const [images, setImages] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -70,17 +60,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
     { id: 3, title: "Content", icon: FileCheck, description: "Recipe content and images" },
     { id: 4, title: "Preview", icon: Eye, description: "Review your recipe" },
   ]
-
-  const handleInitialize = useCallback((instance: { save: () => Promise<OutputData> }) => {
-    editorCore.current = instance
-  }, [])
-
-  const handleEditorChange = useCallback(async () => {
-    if (editorCore.current) {
-      const data = await editorCore.current.save()
-      setEditorData(data)
-    }
-  }, [])
 
   // Multi-select handlers
   const handleCategorySelect = (cat: Category) => {
@@ -128,12 +107,6 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
     setFieldErrors({})
     setLoading(true)
     try {
-      // Save latest editor data
-      let content = editorData
-      if (editorCore.current) {
-        content = await editorCore.current.save()
-        setEditorData(content)
-      }
       // Prepare data for validation and submission
       const data = {
         title,
@@ -150,7 +123,7 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
         categories: selectedCategories.map(c => c.id),
         tags: selectedTags.map(t => t.id),
         images,
-        content,
+        content: editorData,
       }
       // Validate with Zod
       const parsed = recipeSchema.omit({ id: true, createdAt: true, updatedAt: true }).safeParse(data)
@@ -230,6 +203,12 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
       setActiveStep(prev => prev - 1)
       window.scrollTo(0, 0)
     }
+  }
+
+  function getValidImageSrc(src: string | undefined): string {
+    if (!src) return "/fallback.jpg";
+    if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("/")) return src;
+    return "/fallback.jpg";
   }
 
   return (
@@ -497,13 +476,12 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                   <label className="block font-medium mb-1">Recipe Content</label>
                   <p className="text-sm text-muted-foreground mb-3">Write your recipe steps, ingredients, and instructions</p>
                   <div className="border rounded bg-background p-4 min-h-[300px]">
-                    <div id={editorHolderId} />
-                    <ReactEditorJS
-                      onInitialize={handleInitialize}
-                      defaultValue={editorData}
-                      tools={EDITOR_JS_TOOLS}
-                      onChange={handleEditorChange}
-                      holder={editorHolderId}
+                    <DynamicEditor 
+                      holderId={editorHolderId}
+                      tools={['paragraph', 'header', 'list', 'checklist']}
+                      initialData={editorData}
+                      onChange={setEditorData}
+                      debug={true}
                     />
                   </div>
                 </div>
@@ -523,7 +501,7 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-3">
                     {images.map((url, idx) => (
                       <div key={url} className="relative group">
-                        <Image src={url} alt="Uploaded" className="w-full h-24 object-cover rounded border" width={120} height={120} />
+                        <Image src={getValidImageSrc(url)} alt="Uploaded" className="w-full h-24 object-cover rounded border" width={120} height={120} />
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
                           <button
                             type="button"
@@ -556,7 +534,7 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                 >
                   <div className="aspect-[4/2.2] bg-muted flex items-center justify-center relative">
                     {images && images.length > 0 ? (
-                      <Image src={images[0]} alt={title || 'Recipe image'} className="object-cover w-full h-full" width={800} height={400} />
+                      <Image src={getValidImageSrc(images[0])} alt={title || 'Recipe image'} className="object-cover w-full h-full" width={800} height={400} />
                     ) : (
                       <span className="text-6xl opacity-20">🍲</span>
                     )}
@@ -602,7 +580,7 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                     {images.length > 1 && (
                       <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
                         {images.slice(1).map((url) => (
-                          <Image key={url} src={url} alt="Preview" className="w-20 h-20 object-cover rounded border" width={80} height={80} />
+                          <Image key={url} src={getValidImageSrc(url)} alt="Preview" className="w-20 h-20 object-cover rounded border" width={80} height={80} />
                         ))}
                       </div>
                     )}

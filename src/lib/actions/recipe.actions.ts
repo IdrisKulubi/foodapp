@@ -8,10 +8,17 @@ import { eq } from "drizzle-orm";
 import { nanoid } from 'nanoid';
 
 export async function createRecipe(input: Omit<Recipe, "id" | "createdAt" | "updatedAt">) {
+  console.log("[createRecipe] input:", input);
   const parsed = recipeSchema.omit({ id: true, createdAt: true, updatedAt: true }).safeParse(input);
-  if (!parsed.success) throw new Error("Invalid recipe data");
+  if (!parsed.success) {
+    console.error("[createRecipe] validation error:", parsed.error);
+    throw new Error("Invalid recipe data");
+  }
+  console.log("[createRecipe] parsed data:", parsed.data);
   const id = nanoid();
-  const [recipe] = await db.insert(recipes).values({ ...parsed.data, id }).returning();
+  const { authorId, ...rest } = parsed.data; void authorId;
+  const [recipe] = await db.insert(recipes).values({ ...rest, id }).returning();
+  console.log("[createRecipe] inserted recipe:", recipe);
   return recipe;
 }
 
@@ -61,33 +68,83 @@ export async function getPaginatedRecipes({
   filter?: 'all' | 'published' | 'draft' | 'featured'
 }) {
   const offset = (page - 1) * pageSize;
-  // Build where clause
-  const where: any[] = []
-  if (search) {
-    const s = `%${search.toLowerCase()}%`
-    where.push(
-      (recipes: any, { ilike, or }: any) =>
-        or(ilike(recipes.title, s), ilike(recipes.slug, s))
-    )
-  }
-  if (filter === 'published') where.push((recipes: any, { eq }: any) => eq(recipes.published, true))
-  if (filter === 'draft') where.push((recipes: any, { eq }: any) => eq(recipes.published, false))
-  if (filter === 'featured') where.push((recipes: any, { eq }: any) => eq(recipes.featured, true))
+
+  const where = (recipes: any, { ilike, or, eq }: any) => {
+    const conditions = [];
+    if (search) {
+      const s = `%${search.toLowerCase()}%`;
+      conditions.push(or(ilike(recipes.title, s), ilike(recipes.slug, s)));
+    }
+    if (filter === 'published') conditions.push(eq(recipes.published, true));
+    if (filter === 'draft') conditions.push(eq(recipes.published, false));
+    if (filter === 'featured') conditions.push(eq(recipes.featured, true));
+    // Add more filters as needed
+
+    // Combine all conditions with AND
+    if (conditions.length === 0) return undefined;
+    if (conditions.length === 1) return conditions[0];
+    return conditions.reduce((a, b) => a && b);
+  };
+
+  const whereClause = where;
 
   // Get total count
   const totalResult = await db.query.recipes.findMany({
-    where: where.length ? (recipes: any, helpers: any) => where.map(fn => fn(recipes, helpers)).reduce((a, b) => (r: any) => a(r, helpers) && b(r, helpers)) : undefined,
+    where: whereClause,
     columns: { id: true },
-  })
-  const total = totalResult.length
+  });
+  const total = totalResult.length;
 
   // Fetch paginated recipes
   const orderBy = sort === 'title' ? recipes.title : recipes.createdAt;
   const paginated = await db.query.recipes.findMany({
-    where: where.length ? (recipes: any, helpers: any) => where.map(fn => fn(recipes, helpers)).reduce((a, b) => (r: any) => a(r, helpers) && b(r, helpers)) : undefined,
+    where: whereClause,
     orderBy: (recipes: any, { asc, desc }: any) => [sortDir === 'asc' ? asc(orderBy) : desc(orderBy)],
     limit: pageSize,
     offset,
-  })
+  });
   return { recipes: paginated, total };
+}
+
+/**
+ * Fetch top 6 featured or trending recipes for homepage carousel
+ */
+export async function getFeaturedRecipes() {
+  const featured = await db.query.recipes.findMany({
+    where: (recipe, { eq, or }) =>
+      or(eq(recipe.featured, true), eq(recipe.published, true)),
+    limit: 6,
+    orderBy: (recipe, { desc }) => [desc(recipe.createdAt)],
+  });
+  // Always return images as an array
+  return featured.map(recipe => ({
+    ...recipe,
+    images: Array.isArray(recipe.images) ? recipe.images : [],
+  }));
+}
+
+export async function getTrendingRecipes(limit = 12) {
+  return db.query.recipes.findMany({
+    where: (recipe, { eq }) => eq(recipe.trending, true),
+    orderBy: (recipe, { desc }) => [desc(recipe.createdAt)],
+    limit,
+  });
+}
+
+export async function getMostSavedRecipes(limit = 12) {
+  // Interpolate limit directly (safe, not user input)
+  const result = await db.execute(
+    `SELECT r.*, COUNT(sr.recipe_id) as saves
+     FROM recipe r
+     JOIN saved_recipe sr ON r.id = sr.recipe_id
+     GROUP BY r.id
+     ORDER BY saves DESC, r.created_at DESC
+     LIMIT ${limit}`
+  );
+  return result.rows;
+}
+
+export async function setRecipeTrending(id: string, trending: boolean) {
+  const [recipe] = await db.update(recipes).set({ trending }).where(eq(recipes.id, id)).returning();
+  return recipe;
 } 

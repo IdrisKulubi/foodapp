@@ -4,7 +4,8 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { cn } from "@/lib/utils";
-import { searchRecipes } from "./search.actions";
+import { searchRecipes } from "../../lib/actions/search.actions";
+import { useRouter } from "next/navigation";
 
 export default function SearchBar() {
   const [query, setQuery] = React.useState("");
@@ -13,6 +14,7 @@ export default function SearchBar() {
   const [loading, setLoading] = React.useState(false);
   const debouncedQuery = useDebounce(query, 300);
   const [showDropdown, setShowDropdown] = React.useState(false);
+  const router = useRouter();
 
   React.useEffect(() => {
     if (!debouncedQuery) {
@@ -29,6 +31,12 @@ export default function SearchBar() {
       .finally(() => setLoading(false));
   }, [debouncedQuery]);
 
+  const handleResultClick = (slug: string) => {
+    setShowDropdown(false);
+    setQuery("");
+    router.push(`/recipes/${slug}`);
+  };
+
   return (
     <div className="relative w-full max-w-xl mx-auto mb-8">
       <Input
@@ -40,22 +48,31 @@ export default function SearchBar() {
         onBlur={() => setTimeout(() => setShowDropdown(false), 100)}
         className="w-full px-4 py-2 rounded-md border"
         aria-label="Search recipes"
+        autoComplete="off"
       />
       {showDropdown && results.length > 0 && (
-        <div className="absolute z-20 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-72 overflow-auto">
+        <div
+          className="absolute z-20 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-72 overflow-auto"
+          role="listbox"
+        >
           {results.map((r) => (
-            <div
+            <button
               key={r.id}
+              type="button"
+              role="option"
+              aria-selected={false}
+              tabIndex={0}
               className={cn(
-                "px-4 py-2 cursor-pointer hover:bg-accent",
+                "w-full text-left px-4 py-2 cursor-pointer hover:bg-accent focus:bg-accent outline-none",
                 loading && "opacity-50"
               )}
+              onMouseDown={() => handleResultClick(r.slug)}
             >
               <span className="font-medium">{highlight(r.title, query)}</span>
               <span className="block text-xs text-muted-foreground line-clamp-1">
                 {highlight(r.description, query)}
               </span>
-            </div>
+            </button>
           ))}
         </div>
       )}

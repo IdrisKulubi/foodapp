@@ -26,10 +26,52 @@ export async function getRecipeById(id: string) {
   return db.query.recipes.findFirst({ where: eq(recipes.id, id) });
 }
 
+export async function getRecipeBySlug(slug: string) {
+  const recipe = await db.query.recipes.findFirst({ 
+    where: eq(recipes.slug, slug) 
+  });
+  
+  if (!recipe) return null;
+  
+  // Ensure images is always an array
+  return {
+    ...recipe,
+    images: Array.isArray(recipe.images) ? recipe.images : [],
+    featured: !!recipe.featured,
+    published: !!recipe.published,
+    trending: !!recipe.trending,
+  };
+}
+
 export async function updateRecipe(id: string, input: Partial<Omit<Recipe, "id" | "createdAt" | "updatedAt">>) {
+  console.log("[updateRecipe] input:", input);
   const parsed = recipeSchema.partial().omit({ id: true, createdAt: true, updatedAt: true }).safeParse(input);
-  if (!parsed.success) throw new Error("Invalid recipe data");
+  
+  if (!parsed.success) {
+    console.error("[updateRecipe] validation error:", parsed.error.format());
+    
+    // Extract error messages in a more readable format
+    const errorDetails = Object.entries(parsed.error.format())
+      .filter(([key]) => key !== '_errors')
+      .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          // value is string[]
+          return value.length > 0 ? `${key}: ${value.join(', ')}` : null;
+        }
+        if (value && typeof value === 'object' && '_errors' in value && Array.isArray(value._errors)) {
+          return value._errors.length > 0 ? `${key}: ${value._errors.join(', ')}` : null;
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .join('; ');
+    
+    throw new Error(`Invalid recipe data: ${errorDetails || 'Validation failed'}`);
+  }
+  
+  console.log("[updateRecipe] parsed data:", parsed.data);
   const [recipe] = await db.update(recipes).set(parsed.data).where(eq(recipes.id, id)).returning();
+  console.log("[updateRecipe] updated recipe:", recipe);
   return recipe;
 }
 
@@ -107,8 +149,8 @@ export async function getPaginatedRecipes({
  */
 export async function getFeaturedRecipes() {
   const featured = await db.query.recipes.findMany({
-    where: (recipe, { eq, or }) =>
-      or(eq(recipe.featured, true), eq(recipe.published, true)),
+    where: (recipe, { eq, and }) =>
+      and(eq(recipe.featured, true), eq(recipe.published, true)),
     limit: 6,
     orderBy: (recipe, { desc }) => [desc(recipe.createdAt)],
   });
@@ -142,5 +184,10 @@ export async function getMostSavedRecipes(limit = 12) {
 
 export async function setRecipeTrending(id: string, trending: boolean) {
   const [recipe] = await db.update(recipes).set({ trending }).where(eq(recipes.id, id)).returning();
+  return recipe;
+}
+
+export async function setRecipeFeatured(id: string, featured: boolean) {
+  const [recipe] = await db.update(recipes).set({ featured }).where(eq(recipes.id, id)).returning();
   return recipe;
 } 

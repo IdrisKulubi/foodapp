@@ -124,6 +124,10 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
         tags: selectedTags.map(t => t.id),
         images,
         content: editorData,
+        ingredients: [],
+        steps: recipeSteps,
+        instructions: '',
+        notes: '',
       }
       // Validate with Zod
       const parsed = recipeSchema.omit({ id: true, createdAt: true, updatedAt: true }).safeParse(data)
@@ -210,6 +214,12 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
     if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("/")) return src;
     return "/fallback.jpg";
   }
+
+  // Add state for new fields
+  const [ingredients, setIngredients] = useState<{ name: string; quantity: string; unit?: string; note?: string }[]>([])
+  const [recipeSteps, setRecipeSteps] = useState<{ order: number; description: string; imageUrl?: string }[]>([])
+  const [instructions, setInstructions] = useState('')
+  const [notes, setNotes] = useState('')
 
   return (
     <div className="relative min-h-screen flex items-center justify-center py-8">
@@ -472,6 +482,102 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
 
             {activeStep === 3 && (
               <div className="space-y-6">
+                {/* Ingredients */}
+                <div>
+                  <label className="block font-medium mb-1">Ingredients</label>
+                  <div className="space-y-2">
+                    {ingredients.map((ingredient, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <Input
+                          className="w-1/3"
+                          placeholder="Name"
+                          value={ingredient.name}
+                          onChange={e => setIngredients(ings => ings.map((ing, i) => i === idx ? { ...ing, name: e.target.value } : ing))}
+                          aria-label={`Ingredient name ${idx + 1}`}
+                        />
+                        <Input
+                          className="w-1/4"
+                          placeholder="Quantity"
+                          value={ingredient.quantity}
+                          onChange={e => setIngredients(ings => ings.map((ing, i) => i === idx ? { ...ing, quantity: e.target.value } : ing))}
+                          aria-label={`Ingredient quantity ${idx + 1}`}
+                        />
+                        <Input
+                          className="w-1/4"
+                          placeholder="Unit (optional)"
+                          value={ingredient.unit || ''}
+                          onChange={e => setIngredients(ings => ings.map((ing, i) => i === idx ? { ...ing, unit: e.target.value } : ing))}
+                          aria-label={`Ingredient unit ${idx + 1}`}
+                        />
+                        <Input
+                          className="w-1/4"
+                          placeholder="Note (optional)"
+                          value={ingredient.note || ''}
+                          onChange={e => setIngredients(ings => ings.map((ing, i) => i === idx ? { ...ing, note: e.target.value } : ing))}
+                          aria-label={`Ingredient note ${idx + 1}`}
+                        />
+                        <Button type="button" variant="ghost" onClick={() => setIngredients(ings => ings.filter((_, i) => i !== idx))} aria-label="Remove ingredient">×</Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" onClick={() => setIngredients(ings => [...ings, { name: '', quantity: '' }])} className="mt-2">Add Ingredient</Button>
+                  </div>
+                </div>
+                {/* Steps */}
+                <div>
+                  <label className="block font-medium mb-1">Steps</label>
+                  <div className="space-y-2">
+                    {recipeSteps.map((step, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <Input
+                          className="w-1/12"
+                          type="number"
+                          min={1}
+                          placeholder="#"
+                          value={step.order}
+                          onChange={e => setRecipeSteps(stps => stps.map((s, i) => i === idx ? { ...s, order: Number(e.target.value) } : s))}
+                          aria-label={`Step order ${idx + 1}`}
+                        />
+                        <Textarea
+                          className="w-2/3"
+                          placeholder="Description"
+                          value={step.description}
+                          onChange={e => setRecipeSteps(stps => stps.map((s, i) => i === idx ? { ...s, description: e.target.value } : s))}
+                          aria-label={`Step description ${idx + 1}`}
+                        />
+                        <Input
+                          className="w-1/3"
+                          placeholder="Image URL (optional)"
+                          value={step.imageUrl || ''}
+                          onChange={e => setRecipeSteps(stps => stps.map((s, i) => i === idx ? { ...s, imageUrl: e.target.value } : s))}
+                          aria-label={`Step image URL ${idx + 1}`}
+                        />
+                        <Button type="button" variant="ghost" onClick={() => setRecipeSteps(stps => stps.filter((_, i) => i !== idx))} aria-label="Remove step">×</Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" onClick={() => setRecipeSteps(stps => [...stps, { order: recipeSteps.length + 1, description: '' }])} className="mt-2">Add Step</Button>
+                  </div>
+                </div>
+                {/* Instructions */}
+                <div>
+                  <label className="block font-medium mb-1">Instructions</label>
+                  <Textarea
+                    placeholder="General instructions (optional)"
+                    value={instructions}
+                    onChange={e => setInstructions(e.target.value)}
+                    aria-label="Instructions"
+                  />
+                </div>
+                {/* Notes */}
+                <div>
+                  <label className="block font-medium mb-1">Notes</label>
+                  <Textarea
+                    placeholder="Notes (optional)"
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    aria-label="Notes"
+                  />
+                </div>
+                {/* Existing content editor and images */}
                 <div>
                   <label className="block font-medium mb-1">Recipe Content</label>
                   <p className="text-sm text-muted-foreground mb-3">Write your recipe steps, ingredients, and instructions</p>
@@ -485,6 +591,7 @@ export default function RecipeEditorClient({ categories, tags }: RecipeEditorCli
                     />
                   </div>
                 </div>
+                {/* Images section remains unchanged */}
                 <div>
                   <label className="block font-medium mb-1">Images</label>
                   <p className="text-sm text-muted-foreground mb-3">Upload high-quality images for your recipe. The first image will be the main image.</p>

@@ -28,6 +28,8 @@ interface AdminRecipesClientProps {
   sortDir: 'asc' | 'desc'
   search: string
   filter: 'all' | 'published' | 'draft' | 'featured'
+  recipes: Recipe[]
+  total: number
 }
 
 function buildPageUrl({ page, pageSize, sort, sortDir, search, filter }: { page: number; pageSize: number; sort: 'createdAt' | 'title'; sortDir: 'asc' | 'desc'; search?: string; filter?: string }) {
@@ -41,20 +43,20 @@ function buildPageUrl({ page, pageSize, sort, sortDir, search, filter }: { page:
   return `?${params.toString()}`
 }
 
-export default function AdminRecipesClient({ page: initialPage, pageSize, sort, sortDir, search, filter }: AdminRecipesClientProps) {
-  const [recipes, setRecipes] = useState<Recipe[]>([])
+export default function AdminRecipesClient({ page: initialPage, pageSize, sort, sortDir, search, filter, recipes: initialRecipes, total }: AdminRecipesClientProps) {
+  const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes)
   const [page, setPage] = useState(initialPage)
-  const [hasMore, setHasMore] = useState(true)
+  const [hasMore, setHasMore] = useState(initialRecipes.length < total)
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const sentinelRef = useRef<HTMLDivElement>(null)
 
-  // Fetch paginated recipes
-  const fetchRecipes = useCallback(async (reset = false) => {
+  // Fetch more recipes for infinite scroll
+  const fetchRecipes = useCallback(async () => {
     setLoading(true)
-    const { recipes: newRecipes, total } = await getPaginatedRecipes({ page: reset ? 1 : page, pageSize, sort, sortDir, search, filter })
+    const { recipes: newRecipes, total: newTotal } = await getPaginatedRecipes({ page: page + 1, pageSize, sort, sortDir, search, filter })
     const safeRecipes = newRecipes.map(r => ({
       ...r,
       featured: !!r.featured,
@@ -62,42 +64,23 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
       createdAt: r.createdAt ? String(r.createdAt) : undefined,
       trending: r.trending ?? false,
     }))
-    setRecipes(prev => reset ? safeRecipes : [...prev, ...safeRecipes])
-    setHasMore(reset ? safeRecipes.length < total : (recipes.length + safeRecipes.length) < total)
+    setRecipes(prev => [...prev, ...safeRecipes])
+    setPage(prev => prev + 1)
+    setHasMore(recipes.length + safeRecipes.length < newTotal)
     setLoading(false)
   }, [page, pageSize, sort, sortDir, search, filter, recipes.length])
 
-  // Reset on search/filter/sort
-  useEffect(() => {
-    setPage(1)
-    setRecipes([])
-    setHasMore(true)
-    fetchRecipes(true)
-  }, [search, filter, sort, sortDir, pageSize, fetchRecipes])
-
-  // Fetch more on page change
-  useEffect(() => {
-    if (page === 1) return
-    fetchRecipes()
-  }, [page, fetchRecipes])
-
-  // Initial load
-  useEffect(() => {
-    fetchRecipes(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Intersection Observer for infinite scroll
+  // Infinite scroll observer
   useEffect(() => {
     if (!hasMore || loading) return
     const observer = new window.IntersectionObserver(entries => {
       if (entries[0].isIntersecting) {
-        setPage(p => p + 1)
+        fetchRecipes()
       }
     }, { threshold: 1 })
     if (sentinelRef.current) observer.observe(sentinelRef.current)
     return () => observer.disconnect()
-  }, [hasMore, loading])
+  }, [hasMore, loading, fetchRecipes])
 
   const handleDelete = async (id: string) => {
     setDeletingId(id)

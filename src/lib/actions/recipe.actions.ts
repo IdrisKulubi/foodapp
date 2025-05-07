@@ -69,28 +69,24 @@ export async function getPaginatedRecipes({
 }) {
   const offset = (page - 1) * pageSize;
 
-  const where = (recipes: any, { ilike, or, eq }: any) => {
+  // Evaluate the where clause with Drizzle helpers
+  const whereClause = (recipes: any, helpers: any) => {
     const conditions = [];
     if (search) {
       const s = `%${search.toLowerCase()}%`;
-      conditions.push(or(ilike(recipes.title, s), ilike(recipes.slug, s)));
+      conditions.push(helpers.or(helpers.ilike(recipes.title, s), helpers.ilike(recipes.slug, s)));
     }
-    if (filter === 'published') conditions.push(eq(recipes.published, true));
-    if (filter === 'draft') conditions.push(eq(recipes.published, false));
-    if (filter === 'featured') conditions.push(eq(recipes.featured, true));
-    // Add more filters as needed
-
-    // Combine all conditions with AND
+    if (filter === 'published') conditions.push(helpers.eq(recipes.published, true));
+    if (filter === 'draft') conditions.push(helpers.eq(recipes.published, false));
+    if (filter === 'featured') conditions.push(helpers.eq(recipes.featured, true));
     if (conditions.length === 0) return undefined;
     if (conditions.length === 1) return conditions[0];
     return conditions.reduce((a, b) => a && b);
   };
 
-  const whereClause = where;
-
   // Get total count
   const totalResult = await db.query.recipes.findMany({
-    where: whereClause,
+    where: (recipes: any, helpers: any) => whereClause(recipes, helpers),
     columns: { id: true },
   });
   const total = totalResult.length;
@@ -98,7 +94,7 @@ export async function getPaginatedRecipes({
   // Fetch paginated recipes
   const orderBy = sort === 'title' ? recipes.title : recipes.createdAt;
   const paginated = await db.query.recipes.findMany({
-    where: whereClause,
+    where: (recipes: any, helpers: any) => whereClause(recipes, helpers),
     orderBy: (recipes: any, { asc, desc }: any) => [sortDir === 'asc' ? asc(orderBy) : desc(orderBy)],
     limit: pageSize,
     offset,

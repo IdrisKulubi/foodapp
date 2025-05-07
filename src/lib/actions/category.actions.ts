@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import db from "../../../db/drizzle";
 import { categories } from "../../../db/schema";
 import { categorySchema, type Category } from "../validation";
-import { eq, or, ilike, asc, desc, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { nanoid } from 'nanoid';
 
 export async function createCategory(input: Omit<Category, "id">) {
@@ -48,28 +49,31 @@ export async function getPaginatedCategories({
   sortDir?: 'asc' | 'desc'
 }) {
   const offset = (page - 1) * pageSize;
-  const where = search
-    ? or(
-        ilike(categories.name, `%${search}%`),
-        ilike(categories.slug, `%${search}%`)
-      )
-    : undefined;
-  const orderBy = [
-    sortDir === 'asc' ? asc(categories[sort]) : desc(categories[sort])
-  ];
-  const [totalResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(categories)
-    .where(where)
-    .execute();
-  const total = Number(totalResult?.count ?? 0);
-  const cats = await db
-    .select()
-    .from(categories)
-    .where(where)
-    .orderBy(...orderBy)
-    .limit(pageSize)
-    .offset(offset)
-    .execute();
-  return { categories: cats, total };
+
+  // Evaluate the where clause with Drizzle helpers
+  const whereClause = (categories: any, helpers: any) => {
+    if (!search) return undefined;
+    const s = `%${search.toLowerCase()}%`;
+    return helpers.or(
+      helpers.ilike(categories.name, s),
+      helpers.ilike(categories.slug, s)
+    );
+  };
+
+  // Get total count
+  const totalResult = await db.query.categories.findMany({
+    where: (categories: any, helpers: any) => whereClause(categories, helpers),
+    columns: { id: true },
+  });
+  const total = totalResult.length;
+
+  // Fetch paginated categories
+  const orderBy = sort === 'slug' ? categories.slug : categories.name;
+  const paginated = await db.query.categories.findMany({
+    where: (categories: any, helpers: any) => whereClause(categories, helpers),
+    orderBy: (categories: any, { asc, desc }: any) => [sortDir === 'asc' ? asc(orderBy) : desc(orderBy)],
+    limit: pageSize,
+    offset,
+  });
+  return { categories: paginated, total };
 } 

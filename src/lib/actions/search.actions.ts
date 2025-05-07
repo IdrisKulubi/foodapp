@@ -16,6 +16,7 @@ export async function searchRecipes(query: string) {
       id: true,
       title: true,
       description: true,
+      slug: true,
     },
     limit: 8,
   });

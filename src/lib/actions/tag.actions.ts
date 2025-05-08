@@ -52,21 +52,27 @@ export async function getPaginatedTags({
   search?: string
 }) {
   const offset = (page - 1) * pageSize;
-  let where = undefined;
-  if (search) {
+
+  // Evaluate the where clause with Drizzle helpers
+  const whereClause = (tags: any, helpers: any) => {
+    if (!search) return undefined;
     const s = `%${search.toLowerCase()}%`;
-    where = (tags: any, { ilike, or }: any) =>
-      or(ilike(tags.name, s), ilike(tags.slug, s));
-  }
+    return helpers.or(
+      helpers.ilike(tags.name, s),
+      helpers.ilike(tags.slug, s)
+    );
+  };
+
   // Get total count
   const totalResult = await db.query.tags.findMany({
-    where,
+    where: (tags: any, helpers: any) => whereClause(tags, helpers),
     columns: { id: true },
   });
   const total = totalResult.length;
+
   // Fetch paginated tags
   const paginated = await db.query.tags.findMany({
-    where,
+    where: (tags: any, helpers: any) => whereClause(tags, helpers),
     orderBy: (tags: any, { asc }: any) => [asc(tags.name)],
     limit: pageSize,
     offset,

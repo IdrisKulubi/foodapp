@@ -1,75 +1,70 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { getPaginatedCategories, getAllCategories, deleteCategory } from '@/lib/actions/category.actions'
+import { getPaginatedTags, getAllTags, deleteTag } from '@/lib/actions/tag.actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
-import AddCategoryDialog from './AddCategoryDialog'
-import EditCategoryDialog from './EditCategoryDialog'
+import { AddTagDialog } from './AddTagDialog'
+import { EditTagDialog } from './EditTagDialog'
 
-interface Category {
+
+interface Tag {
   id: string
   name: string
   slug: string
 }
 
-interface AdminCategoriesClientProps {
+interface AdminTagsClientProps {
   page: number
   pageSize: number
   search: string
-  sort: 'name' | 'slug'
-  sortDir: 'asc' | 'desc'
-  categories: Category[]
+  tags: Tag[]
   total: number
 }
 
-export default function AdminCategoriesClient({ page: initialPage, pageSize, search: initialSearch, sort: initialSort, sortDir: initialSortDir, categories: initialCategories, total }: AdminCategoriesClientProps) {
+export default function AdminTagsClient({ page: initialPage, pageSize, search: initialSearch, tags: initialTags, total }: AdminTagsClientProps) {
   const [open, setOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [editCategory, setEditCategory] = useState<Category | null>(null)
+  const [editTag, setEditTag] = useState<Tag | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [categories, setCategories] = useState<Category[]>(initialCategories)
+  const [tags, setTags] = useState<Tag[]>(initialTags)
   const [page, setPage] = useState(initialPage)
-  const [hasMore, setHasMore] = useState(initialCategories.length < total)
+  const [hasMore, setHasMore] = useState(initialTags.length < total)
   const [loading, setLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [search, setSearch] = useState(initialSearch)
-  const [sort, setSort] = useState<'name' | 'slug'>(initialSort)
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSortDir)
   const selectAllRef = useRef<HTMLInputElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
-  const allSelected = categories.length > 0 && selectedIds.length === categories.length
-  const someSelected = selectedIds.length > 0 && selectedIds.length < categories.length
+  const allSelected = tags.length > 0 && selectedIds.length === tags.length
+  const someSelected = selectedIds.length > 0 && selectedIds.length < tags.length
 
-  // Fetch more categories for infinite scroll
-  const fetchCategories = useCallback(async () => {
+  // Fetch more tags for infinite scroll
+  const fetchTags = useCallback(async () => {
     setLoading(true)
-    const { categories: newCategories, total: newTotal } = await getPaginatedCategories({
+    const { tags: newTags, total: newTotal } = await getPaginatedTags({
       page: page + 1,
       pageSize,
       search,
-      sort,
-      sortDir,
     })
-    setCategories(prev => [...prev, ...newCategories])
+    setTags(prev => [...prev, ...newTags])
     setPage(prev => prev + 1)
-    setHasMore(categories.length + newCategories.length < newTotal)
+    setHasMore(tags.length + newTags.length < newTotal)
     setLoading(false)
-  }, [page, pageSize, search, sort, sortDir, categories.length])
+  }, [page, pageSize, search, tags.length])
 
   // Infinite scroll observer
   useEffect(() => {
     if (!hasMore || loading) return
     const observer = new window.IntersectionObserver(entries => {
       if (entries[0].isIntersecting) {
-        fetchCategories()
+        fetchTags()
       }
     }, { threshold: 1 })
     if (sentinelRef.current) observer.observe(sentinelRef.current)
     return () => observer.disconnect()
-  }, [hasMore, loading, fetchCategories])
+  }, [hasMore, loading, fetchTags])
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -79,33 +74,33 @@ export default function AdminCategoriesClient({ page: initialPage, pageSize, sea
 
   const handleCreated = () => {
     setOpen(false)
-    getAllCategories().then(setCategories)
+    getAllTags().then(setTags)
   }
 
   const handleUpdated = () => {
     setEditOpen(false)
-    setEditCategory(null)
-    getAllCategories().then(setCategories)
+    setEditTag(null)
+    getAllTags().then(setTags)
   }
 
   const handleDelete = async (id: string) => {
     setDeleteId(id)
-    await deleteCategory(id)
+    await deleteTag(id)
     setDeleteId(null)
-    getAllCategories().then(setCategories)
+    getAllTags().then(setTags)
   }
 
   const handleBulkDelete = async () => {
     setDeleteId('bulk')
-    await Promise.all(selectedIds.map(id => deleteCategory(id)))
+    await Promise.all(selectedIds.map(id => deleteTag(id)))
     setDeleteId(null)
     setSelectedIds([])
-    getAllCategories().then(setCategories)
+    getAllTags().then(setTags)
   }
 
   const handleSelectAll = () => {
     if (allSelected) setSelectedIds([])
-    else setSelectedIds(categories.map(cat => cat.id))
+    else setSelectedIds(tags.map(tag => tag.id))
   }
 
   const handleSelect = (id: string) => {
@@ -115,48 +110,23 @@ export default function AdminCategoriesClient({ page: initialPage, pageSize, sea
   return (
     <div className="max-w-4xl mx-auto py-10">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8 animate-in fade-in slide-in-from-top-2">
-        <div className="flex-1 flex flex-col gap-2">
-          <h1 className="text-2xl font-bold mb-1">Manage Categories</h1>
-          <p className="text-muted-foreground">View, create, edit, delete, search, filter, and sort categories here.</p>
-          <form
-            onSubmit={e => { e.preventDefault(); }}
-            className="flex gap-2 mt-2"
-            role="search"
-            aria-label="Search categories"
-          >
-            <input
-              type="search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search categories..."
-              className="w-full md:w-64 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring focus:border-primary"
-              aria-label="Search categories"
-            />
-            <select
-              value={sort}
-              onChange={e => setSort(e.target.value as 'name' | 'slug')}
-              className="border rounded px-2 py-1 text-sm bg-background"
-              aria-label="Sort by"
-            >
-              <option value="name">Sort by Name</option>
-              <option value="slug">Sort by Slug</option>
-            </select>
-            <select
-              value={sortDir}
-              onChange={e => setSortDir(e.target.value as 'asc' | 'desc')}
-              className="border rounded px-2 py-1 text-sm bg-background"
-              aria-label="Sort direction"
-            >
-              <option value="asc">Asc</option>
-              <option value="desc">Desc</option>
-            </select>
-          </form>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold mb-1">Manage Tags</h1>
+          <p className="text-muted-foreground mb-4">View, create, edit, delete, and search tags here.</p>
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search tags..."
+            className="w-full md:w-64 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring focus:border-primary"
+            aria-label="Search tags"
+          />
         </div>
         <Button size="lg" className="shadow-lg" variant="default" onClick={() => setOpen(true)}>
-          + Add Category
+          + Add Tag
         </Button>
-        <AddCategoryDialog open={open} onOpenChange={setOpen} onCreated={handleCreated} />
-        <EditCategoryDialog open={editOpen} onOpenChange={v => { setEditOpen(v); if (!v) setEditCategory(null) }} category={editCategory} onUpdated={handleUpdated} />
+        <AddTagDialog open={open} onOpenChange={setOpen} onCreated={handleCreated} />
+        <EditTagDialog open={editOpen} onOpenChange={v => { setEditOpen(v); if (!v) setEditTag(null) }} tag={editTag} onUpdated={handleUpdated} />
       </div>
       {/* Bulk actions bar */}
       {selectedIds.length > 0 && (
@@ -168,11 +138,11 @@ export default function AdminCategoriesClient({ page: initialPage, pageSize, sea
           <Button variant="outline" onClick={() => setSelectedIds([])} disabled={deleteId === 'bulk'}>Clear</Button>
         </div>
       )}
-      {categories.length === 0 && !loading ? (
+      {tags.length === 0 && !loading ? (
         <div className="flex flex-col items-center justify-center py-24 animate-in fade-in">
           <span className="text-5xl mb-4">🏷️</span>
-          <p className="text-lg text-muted-foreground mb-2">No categories found.</p>
-          <Button size="lg" variant="default" onClick={() => setOpen(true)}>+ Add your first category</Button>
+          <p className="text-lg text-muted-foreground mb-2">No tags found.</p>
+          <Button size="lg" variant="default" onClick={() => setOpen(true)}>+ Add your first tag</Button>
         </div>
       ) : (
         <AnimatePresence>
@@ -185,45 +155,45 @@ export default function AdminCategoriesClient({ page: initialPage, pageSize, sea
                 checked={allSelected}
                 onChange={handleSelectAll}
                 className="size-5 accent-primary border rounded focus:ring focus:ring-primary/30"
-                aria-label="Select all categories"
+                aria-label="Select all tags"
               />
               <span className="text-sm text-muted-foreground">Select All</span>
             </div>
-            {categories.map((cat, i) => (
+            {tags.map((tag, i) => (
               <motion.div
-                key={cat.id}
+                key={tag.id}
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 24 }}
                 transition={{ delay: i * 0.05, type: 'spring', stiffness: 120 }}
-                className={`bg-card rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 group overflow-hidden border border-border animate-in fade-in relative p-5 flex flex-col gap-2 ${deleteId === cat.id ? 'opacity-50 pointer-events-none' : ''}`}
+                className={`bg-card rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 group overflow-hidden border border-border animate-in fade-in relative p-5 flex flex-col gap-2 ${deleteId === tag.id ? 'opacity-50 pointer-events-none' : ''}`}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <input
                     type="checkbox"
-                    checked={selectedIds.includes(cat.id)}
-                    onChange={() => handleSelect(cat.id)}
+                    checked={selectedIds.includes(tag.id)}
+                    onChange={() => handleSelect(tag.id)}
                     className="size-5 accent-primary border rounded focus:ring focus:ring-primary/30"
-                    aria-label={`Select category ${cat.name}`}
+                    aria-label={`Select tag ${tag.name}`}
                   />
-                  <h2 className="text-lg font-semibold truncate flex-1 group-hover:text-primary transition-colors">{cat.name}</h2>
-                  <Badge variant="secondary">{cat.slug}</Badge>
+                  <h2 className="text-lg font-semibold truncate flex-1 group-hover:text-primary transition-colors">{tag.name}</h2>
+                  <Badge variant="secondary">{tag.slug}</Badge>
                 </div>
                 <div className="flex gap-2 mt-2">
-                  <Button size="sm" variant="outline" onClick={() => { setEditCategory(cat); setEditOpen(true) }}>Edit</Button>
-                  <Button size="sm" variant="destructive" onClick={() => setDeleteId(cat.id)} disabled={deleteId === cat.id}>Delete</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setEditTag(tag); setEditOpen(true) }}>Edit</Button>
+                  <Button size="sm" variant="destructive" onClick={() => setDeleteId(tag.id)} disabled={deleteId === tag.id}>Delete</Button>
                 </div>
                 {/* Delete Confirmation Dialog */}
-                {deleteId === cat.id && (
+                {deleteId === tag.id && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20 animate-in fade-in">
                     <div className="bg-card p-6 rounded shadow-xl flex flex-col gap-4 w-72 border">
-                      <div className="text-lg font-semibold">Delete this category?</div>
+                      <div className="text-lg font-semibold">Delete this tag?</div>
                       <div className="text-muted-foreground text-sm">This action cannot be undone.</div>
                       <div className="flex gap-2 mt-2">
-                        <Button variant="destructive" onClick={() => handleDelete(cat.id)} disabled={deleteId === cat.id}>
-                          {deleteId === cat.id ? 'Deleting...' : 'Delete'}
+                        <Button variant="destructive" onClick={() => handleDelete(tag.id)} disabled={deleteId === tag.id}>
+                          {deleteId === tag.id ? 'Deleting...' : 'Delete'}
                         </Button>
-                        <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleteId === cat.id}>
+                        <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleteId === tag.id}>
                           Cancel
                         </Button>
                       </div>
@@ -231,10 +201,10 @@ export default function AdminCategoriesClient({ page: initialPage, pageSize, sea
                   </div>
                 )}
                 {/* Bulk Delete Confirmation Dialog */}
-                {deleteId === 'bulk' && selectedIds.includes(cat.id) && i === 0 && (
+                {deleteId === 'bulk' && selectedIds.includes(tag.id) && i === 0 && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20 animate-in fade-in">
                     <div className="bg-card p-6 rounded shadow-xl flex flex-col gap-4 w-72 border">
-                      <div className="text-lg font-semibold">Delete {selectedIds.length} categories?</div>
+                      <div className="text-lg font-semibold">Delete {selectedIds.length} tags?</div>
                       <div className="text-muted-foreground text-sm">This action cannot be undone.</div>
                       <div className="flex gap-2 mt-2">
                         <Button variant="destructive" onClick={handleBulkDelete} disabled={deleteId === 'bulk'}>

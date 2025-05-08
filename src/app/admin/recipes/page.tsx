@@ -1,4 +1,5 @@
 import AdminRecipesClient from './AdminRecipesClient'
+import { getPaginatedRecipes } from '@/lib/actions/recipe.actions'
 
 // Use the current Next.js app router conventions
 type FilterType = 'all' | 'published' | 'draft' | 'featured'
@@ -22,6 +23,25 @@ export default async function AdminRecipesPage(props: { searchParams: SearchPara
     ? (searchParams.filter as FilterType) 
     : 'all'
 
+  // Fetch recipes server-side
+  const { recipes, total } = await getPaginatedRecipes({
+    page,
+    pageSize,
+    sort,
+    sortDir,
+    search,
+    filter,
+  })
+
+  // Normalize booleans for type safety
+  const safeRecipes = recipes.map(r => ({
+    ...r,
+    featured: !!r.featured,
+    published: !!r.published,
+    trending: !!r.trending,
+    createdAt: r.createdAt ? String(r.createdAt) : undefined,
+  }))
+
   return (
     <AdminRecipesClient
       page={page}
@@ -30,6 +50,8 @@ export default async function AdminRecipesPage(props: { searchParams: SearchPara
       sortDir={sortDir}
       search={search}
       filter={filter}
+      recipes={safeRecipes}
+      total={total}
     />
   )
 } 

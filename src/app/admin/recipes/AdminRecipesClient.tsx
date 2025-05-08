@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { motion, AnimatePresence } from 'framer-motion'
-import { deleteRecipe, getPaginatedRecipes, setRecipeTrending } from '@/lib/actions/recipe.actions'
+import { deleteRecipe, getPaginatedRecipes, setRecipeTrending, setRecipeFeatured } from '@/lib/actions/recipe.actions'
 import Image from 'next/image'
 import { Switch } from '@/components/ui/switch'
 
@@ -28,6 +28,8 @@ interface AdminRecipesClientProps {
   sortDir: 'asc' | 'desc'
   search: string
   filter: 'all' | 'published' | 'draft' | 'featured'
+  recipes: Recipe[]
+  total: number
 }
 
 function buildPageUrl({ page, pageSize, sort, sortDir, search, filter }: { page: number; pageSize: number; sort: 'createdAt' | 'title'; sortDir: 'asc' | 'desc'; search?: string; filter?: string }) {
@@ -41,20 +43,20 @@ function buildPageUrl({ page, pageSize, sort, sortDir, search, filter }: { page:
   return `?${params.toString()}`
 }
 
-export default function AdminRecipesClient({ page: initialPage, pageSize, sort, sortDir, search, filter }: AdminRecipesClientProps) {
-  const [recipes, setRecipes] = useState<Recipe[]>([])
+export default function AdminRecipesClient({ page: initialPage, pageSize, sort, sortDir, search, filter, recipes: initialRecipes, total }: AdminRecipesClientProps) {
+  const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes)
   const [page, setPage] = useState(initialPage)
-  const [hasMore, setHasMore] = useState(true)
+  const [hasMore, setHasMore] = useState(initialRecipes.length < total)
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const sentinelRef = useRef<HTMLDivElement>(null)
 
-  // Fetch paginated recipes
-  const fetchRecipes = useCallback(async (reset = false) => {
+  // Fetch more recipes for infinite scroll
+  const fetchRecipes = useCallback(async () => {
     setLoading(true)
-    const { recipes: newRecipes, total } = await getPaginatedRecipes({ page: reset ? 1 : page, pageSize, sort, sortDir, search, filter })
+    const { recipes: newRecipes, total: newTotal } = await getPaginatedRecipes({ page: page + 1, pageSize, sort, sortDir, search, filter })
     const safeRecipes = newRecipes.map(r => ({
       ...r,
       featured: !!r.featured,
@@ -62,42 +64,23 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
       createdAt: r.createdAt ? String(r.createdAt) : undefined,
       trending: r.trending ?? false,
     }))
-    setRecipes(prev => reset ? safeRecipes : [...prev, ...safeRecipes])
-    setHasMore(reset ? safeRecipes.length < total : (recipes.length + safeRecipes.length) < total)
+    setRecipes(prev => [...prev, ...safeRecipes])
+    setPage(prev => prev + 1)
+    setHasMore(recipes.length + safeRecipes.length < newTotal)
     setLoading(false)
   }, [page, pageSize, sort, sortDir, search, filter, recipes.length])
 
-  // Reset on search/filter/sort
-  useEffect(() => {
-    setPage(1)
-    setRecipes([])
-    setHasMore(true)
-    fetchRecipes(true)
-  }, [search, filter, sort, sortDir, pageSize, fetchRecipes])
-
-  // Fetch more on page change
-  useEffect(() => {
-    if (page === 1) return
-    fetchRecipes()
-  }, [page, fetchRecipes])
-
-  // Initial load
-  useEffect(() => {
-    fetchRecipes(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Intersection Observer for infinite scroll
+  // Infinite scroll observer
   useEffect(() => {
     if (!hasMore || loading) return
     const observer = new window.IntersectionObserver(entries => {
       if (entries[0].isIntersecting) {
-        setPage(p => p + 1)
+        fetchRecipes()
       }
     }, { threshold: 1 })
     if (sentinelRef.current) observer.observe(sentinelRef.current)
     return () => observer.disconnect()
-  }, [hasMore, loading])
+  }, [hasMore, loading, fetchRecipes])
 
   const handleDelete = async (id: string) => {
     setDeletingId(id)
@@ -222,60 +205,111 @@ export default function AdminRecipesClient({ page: initialPage, pageSize, sort, 
                 transition={{ delay: i * 0.05, type: 'spring', stiffness: 120 }}
                 className="bg-card rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 group overflow-hidden border border-border animate-in fade-in relative"
               >
-                <Link href={`/admin/recipes/${recipe.id}`} className="block focus:outline-none focus:ring-2 focus:ring-primary/60">
-                  <div className="aspect-[4/2.2] bg-muted flex items-center justify-center">
-                    {recipe.images && recipe.images.length > 0 ? (
-                      <Image src={recipe.images[0]} alt={recipe.title} className="object-cover w-full h-full" fill />
-                    ) : (
-                      <span className="text-5xl opacity-30 group-hover:scale-110 transition-transform">🍲</span>
-                    )}
-                  </div>
-                  <div className="p-4 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold truncate flex-1 group-hover:text-primary transition-colors">{recipe.title}</h2>
-                      {recipe.featured && <Badge variant="default">Featured</Badge>}
-                      {recipe.trending && <Badge variant="secondary">Trending</Badge>}
-                      {recipe.published ? (
-                        <Badge variant="outline">Published</Badge>
+                {/* Link to recipe details - only wraps image and title */}
+                <div className="flex flex-col h-full">
+                  <Link href={`/admin/recipes/${recipe.id}`} className="block focus:outline-none focus:ring-2 focus:ring-primary/60">
+                    <div className="aspect-[4/2.2] bg-muted flex items-center justify-center relative">
+                      {recipe.images && recipe.images.length > 0 ? (
+                        <Image 
+                          src={recipe.images[0]} 
+                          alt={recipe.title} 
+                          className="object-cover" 
+                          fill 
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          style={{ pointerEvents: 'none' }} // Prevent image from capturing clicks
+                        />
                       ) : (
-                        <Badge variant="secondary">Draft</Badge>
+                        <span className="text-5xl opacity-30 group-hover:scale-110 transition-transform">🍲</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground truncate flex-1">/{recipe.slug}</span>
-                      <Switch
-                        checked={!!recipe.trending}
-                        onCheckedChange={async (checked) => {
-                          const updated = await setRecipeTrending(recipe.id, checked)
-                          setRecipes(prev =>
-                            prev.map(r =>
-                              r.id === recipe.id
-                                ? { ...r, trending: !!updated.trending }
-                                : r
-                            )
-                          )
-                        }}
-                        aria-label={recipe.trending ? 'Unmark as trending' : 'Mark as trending'}
-                      />
+                    <div className="p-4">
+                      <h2 className="text-lg font-semibold truncate group-hover:text-primary transition-colors">{recipe.title}</h2>
+                      <span className="text-xs text-muted-foreground truncate">/recipes/{recipe.slug}</span>
+                    </div>
+                  </Link>
+                  
+                  {/* Status badges */}
+                  <div className="px-4 flex flex-wrap items-center gap-2 mb-2">
+                    {recipe.featured && <Badge variant="default">Featured</Badge>}
+                    {recipe.trending && <Badge variant="secondary">Trending</Badge>}
+                    {recipe.published ? (
+                      <Badge variant="outline">Published</Badge>
+                    ) : (
+                      <Badge variant="secondary">Draft</Badge>
+                    )}
+                  </div>
+
+                  {/* Action buttons - make more prominent */}
+                  <div className="absolute top-2 right-2 flex gap-2 z-20">
+                    <Link href={`/admin/recipes/${recipe.id}/edit`} onClick={(e) => e.stopPropagation()}>
+                      <Button 
+                        size="icon" 
+                        variant="outline" 
+                        className="bg-white/90 backdrop-blur-sm hover:bg-primary hover:text-white transition-colors shadow-md h-9 w-9" 
+                        aria-label="Edit recipe"
+                      >
+                        ✏️
+                      </Button>
+                    </Link>
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      className="hover:bg-red-600 transition-colors shadow-md h-9 w-9"
+                      aria-label="Delete recipe"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmId(recipe.id);
+                      }}
+                      disabled={isPending && deletingId === recipe.id}
+                    >
+                      {isPending && deletingId === recipe.id ? '⏳' : '🗑️'}
+                    </Button>
+                  </div>
+
+                  {/* Action toggles with improved UI */}
+                  <div className="mt-auto px-4 pb-4 pt-2 border-t border-border/50 bg-muted/20 relative z-10">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2 rounded-lg p-2 bg-background/90 shadow-sm hover:shadow transition-shadow cursor-pointer">
+                        <span className="text-sm">Trending</span>
+                        <Switch
+                          checked={!!recipe.trending}
+                          onCheckedChange={async (checked) => {
+                            const updated = await setRecipeTrending(recipe.id, checked);
+                            setRecipes(prev =>
+                              prev.map(r =>
+                                r.id === recipe.id
+                                  ? { ...r, trending: !!updated.trending }
+                                  : r
+                              )
+                            );
+                          }}
+                          className="data-[state=checked]:bg-orange-500 z-10"
+                          aria-label={recipe.trending ? 'Remove from trending' : 'Mark as trending'}
+                        />
+                      </div>
+                      
+                      <div className="flex items-center gap-2 rounded-lg p-2 bg-background/90 shadow-sm hover:shadow transition-shadow cursor-pointer">
+                        <span className="text-sm">Featured</span>
+                        <Switch
+                          checked={!!recipe.featured}
+                          onCheckedChange={async (checked) => {
+                            const updated = await setRecipeFeatured(recipe.id, checked);
+                            setRecipes(prev =>
+                              prev.map(r =>
+                                r.id === recipe.id
+                                  ? { ...r, featured: !!updated.featured }
+                                  : r
+                              )
+                            );
+                          }}
+                          className="data-[state=checked]:bg-blue-500 z-10"
+                          aria-label={recipe.featured ? 'Remove from featured' : 'Mark as featured'}
+                        />
+                      </div>
                     </div>
                   </div>
-                </Link>
-                <div className="absolute top-2 right-2 flex gap-2 z-10">
-                  <Link href={`/admin/recipes/${recipe.id}/edit`}>
-                    <Button size="icon" variant="outline" aria-label="Edit recipe">
-                      ✏️
-                    </Button>
-                  </Link>
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    aria-label="Delete recipe"
-                    onClick={() => setConfirmId(recipe.id)}
-                    disabled={isPending && deletingId === recipe.id}
-                  >
-                    {isPending && deletingId === recipe.id ? '⏳' : '🗑️'}
-                  </Button>
                 </div>
+
                 {/* Confirm Delete Dialog */}
                 {confirmId === recipe.id && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20 animate-in fade-in">

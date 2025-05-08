@@ -26,10 +26,10 @@ export default function HeroSection() {
       <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-2xl mx-auto mt-16 md:mt-24 animate-in fade-in slide-in-from-top-4">
         <div className="backdrop-blur-xl bg-zinc-900/80 rounded-3xl shadow-2xl border border-zinc-800 px-8 py-10 flex flex-col items-center gap-6">
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-orange-100 drop-shadow-lg text-center">
-            Welcome to foodbybrendah
+            Welcome to foodbybrenda
           </h1>
           <p className="text-base md:text-xl text-orange-200 max-w-md mx-auto text-center">
-            Curated by Brendah. Discover, create, and share the world&apos;s tastiest recipes with the foodbybrendah community. Find inspiration, share your creations, and connect with food lovers everywhere.
+            Curated by Brendah. Discover, create, and share the world&apos;s tastiest recipes with the foodbybrenda community. Find inspiration, share your creations, and connect with food lovers everywhere.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mt-2">
             <Link href="/admin/recipes">

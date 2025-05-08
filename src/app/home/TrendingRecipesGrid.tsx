@@ -22,7 +22,14 @@ export default async function TrendingRecipesGrid() {
       totalTime: typeof r.totalTime === 'number' ? r.totalTime : r.totalTime ? Number(r.totalTime) : null,
       servings: typeof r.servings === 'number' ? r.servings : r.servings ? Number(r.servings) : null,
       difficultyLevel: r.difficultyLevel ? String(r.difficultyLevel) : "",
-      images: Array.isArray(r.images) ? r.images : [],
+      images: Array.isArray(r.images) ? r.images.map(String) : [],
+      authorId: String(r.authorId || 'system'),
+      ingredients: [],
+      steps: [],
+      instructions: null,
+      notes: null,
+      categoryIds: [],
+      tagIds: [],
     }));
   }
   if (!trending || trending.length === 0) return null;

@@ -45,6 +45,8 @@ export const recipeSchema = z.object({
   })).default([]),
   instructions: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  categoryIds: z.array(z.string()).optional().default([]),
+  tagIds: z.array(z.string()).optional().default([]),
 });
 export type Recipe = z.infer<typeof recipeSchema>;
 

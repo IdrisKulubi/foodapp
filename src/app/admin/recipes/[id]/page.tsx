@@ -1,27 +1,27 @@
 import { getRecipeById } from '@/lib/actions/recipe.actions'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { recipeSchema, type Recipe } from '@/lib/validation'
+import { notFound } from 'next/navigation'
 
 interface AdminRecipePageProps {
-  params: Promise<{ id: string }> | { id: string }
+  params: Promise<{ id: string }> // Strictly Promise
 }
 
-export default async function AdminRecipePage({ params }: AdminRecipePageProps) {
-  const resolvedParams = await params;
-  const id = 'id' in resolvedParams ? resolvedParams.id : '';
-  const recipe = await getRecipeById(id)
+export default async function AdminRecipePage({ params: paramsPromise }: AdminRecipePageProps) {
+  const params = await paramsPromise; // Await here
+  const rawRecipe = await getRecipeById(params.id)
 
-  if (!recipe) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <span className="text-4xl mb-4">🍽️</span>
-        <p className="text-lg text-muted-foreground mb-2">Recipe not found.</p>
-        <Link href="/admin/recipes">
-          <Button variant="outline">Back to Recipes</Button>
-        </Link>
-      </div>
-    )
+  if (!rawRecipe) {
+    notFound()
   }
+
+  const parsedRecipe = recipeSchema.safeParse(rawRecipe);
+  if (!parsedRecipe.success) {
+    console.error("Failed to parse recipe data for display:", parsedRecipe.error.format());
+    notFound();
+  }
+  const recipe: Recipe = parsedRecipe.data;
 
   return (
     <div className="max-w-2xl mx-auto py-12">
@@ -35,11 +35,12 @@ export default async function AdminRecipePage({ params }: AdminRecipePageProps) 
       </div>
       <div className="mb-4">
         <div className="text-muted-foreground text-sm mb-2">Slug: /{recipe.slug}</div>
+        <div className="text-muted-foreground text-sm mb-2">Author ID: {recipe.authorId}</div>
         <div className="text-muted-foreground text-sm mb-2">Created: {recipe.createdAt?.toString()}</div>
         <div className="text-muted-foreground text-sm mb-2">Published: {recipe.published ? 'Yes' : 'No'}</div>
         <div className="text-muted-foreground text-sm mb-2">Featured: {recipe.featured ? 'Yes' : 'No'}</div>
         <div className="text-muted-foreground text-sm mb-2">Trending: {recipe.trending ? 'Yes' : 'No'}</div>
-        <div className="text-muted-foreground text-sm mb-2">Description: {recipe.description}</div>
+        <div className="text-muted-foreground text-sm mb-2">Description: {recipe.description || 'N/A'}</div>
         {/* Add more fields as needed */}
       </div>
       <Link href="/admin/recipes">

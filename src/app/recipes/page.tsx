@@ -4,16 +4,16 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
-export default async function RecipesIndexPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined }
-}) {
-  // Parse page and pageSize with fallbacks
-  const page = Math.max(1, Number(searchParams.page) || 1)
+interface RecipesIndexPageProps {
+  // params: Promise<{}>; // No dynamic route params for this page
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export default async function RecipesIndexPage({ searchParams: searchParamsPromise }: RecipesIndexPageProps) {
+  const searchParams = await searchParamsPromise;
+  const page = Math.max(1, Number(searchParams?.page) || 1)
   const pageSize = 12
   
-  // Get all published recipes
   const { recipes, total } = await getPaginatedRecipes({
     page,
     pageSize,
@@ -21,7 +21,6 @@ export default async function RecipesIndexPage({
     sortDir: 'desc',
   })
 
-  // Calculate pagination
   const totalPages = Math.ceil(total / pageSize)
   const hasNextPage = page < totalPages
   const hasPrevPage = page > 1

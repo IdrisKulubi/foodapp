@@ -5,17 +5,26 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { notFound } from 'next/navigation'
 import { Clock, Users, Star, Utensils, Share2 } from 'lucide-react'
+import { recipeSchema, type Recipe } from '@/lib/validation'
 
 interface RecipeDetailPageProps {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
-export default async function RecipeDetailPage({ params }: RecipeDetailPageProps) {
-  const recipe = await getRecipeBySlug(params.slug)
+export default async function RecipeDetailPage({ params: paramsPromise }: RecipeDetailPageProps) {
+  const params = await paramsPromise;
+  const rawRecipe = await getRecipeBySlug(params.slug)
 
-  if (!recipe) {
+  if (!rawRecipe) {
     notFound()
   }
+
+  const parsedRecipe = recipeSchema.safeParse(rawRecipe);
+  if (!parsedRecipe.success) {
+    console.error("Failed to parse recipe data for slug:", params.slug, parsedRecipe.error.format());
+    notFound(); 
+  }
+  const recipe: Recipe = parsedRecipe.data;
 
   // Format cooking times
   const prepTimeText = recipe.prepTime ? `${recipe.prepTime} mins` : '—'

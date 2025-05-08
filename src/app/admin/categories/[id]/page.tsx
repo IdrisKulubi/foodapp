@@ -3,11 +3,13 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 interface AdminCategoryPageProps {
-  params: { id: string }
+  params: Promise<{ id: string }> | { id: string }
 }
 
 export default async function AdminCategoryPage({ params }: AdminCategoryPageProps) {
-  const category = await getCategoryById(params.id)
+  const resolvedParams = await params;
+  const id = 'id' in resolvedParams ? resolvedParams.id : '';
+  const category = await getCategoryById(id)
 
   if (!category) {
     return (

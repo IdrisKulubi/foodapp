@@ -143,7 +143,8 @@ export default function EditRecipeForm({ recipe, categories, tags }: EditRecipeF
         instructions: instructions || "",
         notes: notes || "",
         categoryIds: selectedCategories.map(c => c.id),
-        tagIds: selectedTags.map(t => t.id)
+        tagIds: selectedTags.map(t => t.id),
+        authorId: recipe.authorId
       }
 
       // Submit update

@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 interface AdminCategoryEditPageProps {
-  params: { id: string }
+  params: Promise<{ id: string }> | { id: string }
 }
 
 export default async function AdminCategoryEditPage({ params }: AdminCategoryEditPageProps) {
-  const category = await getCategoryById(params.id)
+  const resolvedParams = await params;
+  const id = 'id' in resolvedParams ? resolvedParams.id : '';
+  const category = await getCategoryById(id)
 
   if (!category) {
     return (
@@ -27,8 +29,8 @@ export default async function AdminCategoryEditPage({ params }: AdminCategoryEdi
     const name = formData.get('name') as string
     const slug = formData.get('slug') as string
     // Add more fields as needed
-    await updateCategory(params.id, { name, slug })
-    redirect(`/admin/categories/${params.id}`)
+    await updateCategory(id, { name, slug })
+    redirect(`/admin/categories/${id}`)
   }
 
   return (
@@ -60,7 +62,7 @@ export default async function AdminCategoryEditPage({ params }: AdminCategoryEdi
         {/* Add more fields as needed */}
         <div className="flex gap-2 mt-4">
           <Button type="submit">Save</Button>
-          <Link href={`/admin/categories/${params.id}`}>
+          <Link href={`/admin/categories/${id}`}>
             <Button type="button" variant="outline">Cancel</Button>
           </Link>
         </div>

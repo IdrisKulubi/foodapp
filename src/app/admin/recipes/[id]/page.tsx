@@ -3,11 +3,13 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 interface AdminRecipePageProps {
-  params: { id: string }
+  params: Promise<{ id: string }> | { id: string }
 }
 
 export default async function AdminRecipePage({ params }: AdminRecipePageProps) {
-  const recipe = await getRecipeById(params.id)
+  const resolvedParams = await params;
+  const id = 'id' in resolvedParams ? resolvedParams.id : '';
+  const recipe = await getRecipeById(id)
 
   if (!recipe) {
     return (

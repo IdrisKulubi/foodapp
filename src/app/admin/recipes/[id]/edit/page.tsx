@@ -5,11 +5,13 @@ import { notFound } from 'next/navigation'
 import EditRecipeForm from './EditRecipeForm'
 
 interface AdminRecipeEditPageProps {
-  params: { id: string }
+  params: Promise<{ id: string }> | { id: string }
 }
 
 export default async function AdminRecipeEditPage({ params }: AdminRecipeEditPageProps) {
-  const recipe = await getRecipeById(params.id)
+  const resolvedParams = await params;
+  const id = 'id' in resolvedParams ? resolvedParams.id : '';
+  const recipe = await getRecipeById(id)
   const categories = await getAllCategories()
   const tags = await getAllTags()
 

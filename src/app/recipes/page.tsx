@@ -90,7 +90,7 @@ export default async function RecipesIndexPage({
           <div className="flex flex-col items-center py-20">
             <div className="text-6xl mb-4">🍽️</div>
             <h2 className="text-2xl font-semibold mb-2">No recipes found</h2>
-            <p className="text-muted-foreground mb-6">We'll be adding more recipes soon!</p>
+            <p className="text-muted-foreground mb-6">We&apos;ll be adding more recipes soon!</p>
             <Link href="/">
               <Button>Return to Home</Button>
             </Link>

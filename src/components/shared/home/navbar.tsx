@@ -14,14 +14,12 @@ export function Navbar() {
         {/* Logo/Brand */}
         <Link href="/" className="flex items-center gap-2 font-extrabold text-orange-200 text-lg tracking-tight hover:text-orange-300 transition-colors">
           <span className="text-2xl">🍲</span>
-          foodbybrendah
+          foodbybrenda
         </Link>
         {/* Nav Links */}
         <div className="hidden md:flex gap-6 items-center">
           <Link href="/" className="text-orange-100 hover:text-orange-300 transition-colors font-medium">Home</Link>
           <Link href="/recipes" className="text-orange-100 hover:text-orange-300 transition-colors font-medium">Recipes</Link>
-          <Link href="/about" className="text-orange-100 hover:text-orange-300 transition-colors font-medium">About</Link>
-          <Link href="/contact" className="text-orange-100 hover:text-orange-300 transition-colors font-medium">Contact</Link>
         </div>
         <div className="flex-1 flex justify-end items-center ml-4 mt-8">
          <SearchBar />

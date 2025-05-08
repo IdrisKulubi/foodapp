@@ -5,7 +5,7 @@ const socials = [
   { href: "https://twitter.com/yourusername", label: "Twitter", icon: Twitter },
   { href: "https://instagram.com/yourusername", label: "Instagram", icon: Instagram },
   { href: "https://linkedin.com/in/yourusername", label: "LinkedIn", icon: Linkedin },
-  { href: "mailto:hello@foodbybrendah.com", label: "Email", icon: Mail },
+  { href: "mailto:hello@foodbybrenda.com", label: "Email", icon: Mail },
 ];
 
 const navLinks = [
@@ -22,9 +22,9 @@ export default function FooterSection() {
         <div className="flex flex-col items-center md:items-start gap-2">
           <Link href="/" className="flex items-center gap-2 text-orange-100 font-extrabold text-xl">
             <Sparkles className="w-7 h-7 text-primary" />
-            foodbybrendah
+            foodbybrenda
           </Link>
-          <span className="text-xs text-zinc-400">&copy; {new Date().getFullYear()} foodbybrendah. All rights reserved.</span>
+          <span className="text-xs text-zinc-400">&copy; {new Date().getFullYear()} foodbybrenda. All rights reserved.</span>
         </div>
         <nav className="flex flex-col items-center md:items-end gap-4">
           <div className="flex gap-4 mb-2">

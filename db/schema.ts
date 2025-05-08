@@ -96,6 +96,10 @@ export const recipes = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     images: jsonb("images").$type<string[]>().default([]).notNull(),
+    ingredients: jsonb("ingredients").$type<{ name: string; quantity: string; unit?: string; note?: string }[]>().default([]).notNull(),
+    steps: jsonb("steps").$type<{ order: number; description: string; imageUrl?: string }[]>().default([]).notNull(),
+    instructions: text("instructions"),
+    notes: text("notes"),
   },
   (table) => ({
     slugIdx: index("recipe_slug_idx").on(table.slug),

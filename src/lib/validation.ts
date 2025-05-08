@@ -32,6 +32,21 @@ export const recipeSchema = z.object({
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
   images: z.array(z.string()).optional().default([]),
+  ingredients: z.array(z.object({
+    name: z.string().min(1),
+    quantity: z.string().min(1),
+    unit: z.string().optional(),
+    note: z.string().optional(),
+  })).default([]),
+  steps: z.array(z.object({
+    order: z.number().int().nonnegative(),
+    description: z.string().min(1),
+    imageUrl: z.string().optional(),
+  })).default([]),
+  instructions: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  categoryIds: z.array(z.string()).optional().default([]),
+  tagIds: z.array(z.string()).optional().default([]),
 });
 export type Recipe = z.infer<typeof recipeSchema>;
 

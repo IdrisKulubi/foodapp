@@ -16,7 +16,7 @@ export type User = z.infer<typeof userSchema>;
 // Recipe Schema
 export const recipeSchema = z.object({
   id: z.string(),
-  authorId: z.string(),
+  authorId: z.string().optional().nullable(),
   title: z.string().min(1),
   slug: z.string().min(1),
   description: z.string().optional().nullable(),

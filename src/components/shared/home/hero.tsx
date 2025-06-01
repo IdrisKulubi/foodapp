@@ -32,12 +32,12 @@ export default function HeroSection() {
             Curated by Brendah. Discover, create, and share the world&apos;s tastiest recipes with the foodbybrenda community. Find inspiration, share your creations, and connect with food lovers everywhere.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mt-2">
-            <Link href="/admin/recipes">
+            <Link href="/recipes">
               <button className="px-8 py-3 rounded-full bg-primary text-primary-foreground font-semibold shadow-lg hover:bg-primary/90 transition text-lg">
                 Browse Recipes
               </button>
             </Link>
-            <Link href="/admin/recipes/new">
+            <Link href="/recipes">
               <button className="px-8 py-3 rounded-full bg-zinc-800 text-orange-200 font-semibold shadow-lg hover:bg-zinc-700 transition text-lg border border-primary/20">
                 Share Your Recipe
               </button>

@@ -2,7 +2,7 @@
 "use server";
 
 import db from "../../../db/drizzle";
-import { recipes } from "../../../db/schema";
+import { recipes, recipeCategories, recipeTags } from "../../../db/schema";
 import { recipeSchema, type Recipe } from "../validation";
 import { eq } from "drizzle-orm";
 import { nanoid } from 'nanoid';
@@ -23,24 +23,114 @@ export async function createRecipe(input: Omit<Recipe, "id" | "createdAt" | "upd
 }
 
 export async function getRecipeById(id: string) {
-  return db.query.recipes.findFirst({ where: eq(recipes.id, id) });
+  const basicRecipe = await db.query.recipes.findFirst({ where: eq(recipes.id, id) });
+  if (!basicRecipe) {
+    console.log(`[getRecipeById] Recipe with ID "${id}" not found in DB.`);
+    return null;
+  }
+
+  // For getRecipeById, you might also want to fetch categoryIds and tagIds if needed by the caller
+  // For simplicity, this example focuses on authorId consistency. Adapt as needed.
+  const categoriesData = await db.select({ categoryId: recipeCategories.categoryId })
+    .from(recipeCategories)
+    .where(eq(recipeCategories.recipeId, basicRecipe.id));
+  const categoryIds = categoriesData.map(c => c.categoryId);
+
+  const tagsData = await db.select({ tagId: recipeTags.tagId })
+    .from(recipeTags)
+    .where(eq(recipeTags.recipeId, basicRecipe.id));
+  const tagIds = tagsData.map(t => t.tagId);
+
+  return {
+    id: String(basicRecipe.id),
+    authorId: String((basicRecipe as any).authorId),
+    title: String((basicRecipe as any).title),
+    slug: String((basicRecipe as any).slug),
+    description: (basicRecipe as any).description ? String((basicRecipe as any).description) : null,
+    prepTime: (basicRecipe as any).prepTime ?? null,
+    cookTime: (basicRecipe as any).cookTime ?? null,
+    totalTime: (basicRecipe as any).totalTime ?? null,
+    servings: (basicRecipe as any).servings ?? null,
+    difficultyLevel: (basicRecipe as any).difficultyLevel ? String((basicRecipe as any).difficultyLevel) : null,
+    featured: !!(basicRecipe as any).featured,
+    published: !!(basicRecipe as any).published,
+    trending: !!(basicRecipe as any).trending,
+    publishedAt: (basicRecipe as any).publishedAt ?? null,
+    createdAt: (basicRecipe as any).createdAt ? new Date((basicRecipe as any).createdAt) : new Date(),
+    updatedAt: (basicRecipe as any).updatedAt ? new Date((basicRecipe as any).updatedAt) : new Date(),
+    images: Array.isArray((basicRecipe as any).images) ? (basicRecipe as any).images.map(String) : [],
+    ingredients: Array.isArray((basicRecipe as any).ingredients) ? (basicRecipe as any).ingredients : [],
+    steps: Array.isArray((basicRecipe as any).steps) ? (basicRecipe as any).steps : [],
+    instructions: (basicRecipe as any).instructions ? String((basicRecipe as any).instructions) : null,
+    notes: (basicRecipe as any).notes ? String((basicRecipe as any).notes) : null,
+    categoryIds,
+    tagIds,
+  };
 }
 
 export async function getRecipeBySlug(slug: string) {
-  const recipe = await db.query.recipes.findFirst({ 
-    where: eq(recipes.slug, slug) 
+  const basicRecipe = await db.query.recipes.findFirst({ 
+    where: eq(recipes.slug, slug),
   });
   
-  if (!recipe) return null;
-  
-  // Ensure images is always an array
-  return {
-    ...recipe,
-    images: Array.isArray(recipe.images) ? recipe.images : [],
-    featured: !!recipe.featured,
-    published: !!recipe.published,
-    trending: !!recipe.trending,
+  if (!basicRecipe) {
+    console.log(`[getRecipeBySlug] Recipe with slug "${slug}" not found in DB.`);
+    return null;
+  }
+
+  // DEBUGGING: Log the raw basicRecipe and its relevant fields
+  console.log("[getRecipeBySlug] Raw basicRecipe:", JSON.stringify(basicRecipe, null, 2));
+  console.log("[getRecipeBySlug] basicRecipe.ingredients raw:", JSON.stringify((basicRecipe as any).ingredients, null, 2));
+  console.log("[getRecipeBySlug] basicRecipe.steps raw:", JSON.stringify((basicRecipe as any).steps, null, 2));
+  console.log("[getRecipeBySlug] basicRecipe.instructions raw:", (basicRecipe as any).instructions);
+
+  // Explicitly attempt to access authorId. Drizzle should return this if the column exists and is populated.
+  // const authorIdFromDb = (basicRecipe as any).authorId; // Removed as authorId is not part of the schema / not used further
+
+  // Validate authorId: must exist and be a non-empty string based on recipeSchema
+  // if (!authorIdFromDb || typeof authorIdFromDb !== 'string' || authorIdFromDb.trim() === '') {
+  //   console.error(`[getRecipeBySlug] Recipe with slug "${slug}" (ID: ${basicRecipe.id}) is missing a valid authorId. Value received: '${authorIdFromDb}'`);
+  //   return null; // Crucial: return null if authorId is invalid, so the page's safeParse will fail clearly or handle null.
+  // }
+
+  const categoriesData = await db.select({ categoryId: recipeCategories.categoryId })
+    .from(recipeCategories)
+    .where(eq(recipeCategories.recipeId, basicRecipe.id));
+  const categoryIds = categoriesData.map(c => c.categoryId);
+
+  const tagsData = await db.select({ tagId: recipeTags.tagId })
+    .from(recipeTags)
+    .where(eq(recipeTags.recipeId, basicRecipe.id));
+  const tagIds = tagsData.map(t => t.tagId);
+
+  // Construct the object for the calling page to parse with recipeSchema
+  const recipeForParsing = {
+    id: String(basicRecipe.id),
+    // authorId: String(authorIdFromDb), // Now we are more certain authorIdFromDb is a valid string
+    title: String((basicRecipe as any).title),
+    slug: String((basicRecipe as any).slug),
+    description: (basicRecipe as any).description ? String((basicRecipe as any).description) : null,
+    prepTime: (basicRecipe as any).prepTime ?? null,
+    cookTime: (basicRecipe as any).cookTime ?? null,
+    totalTime: (basicRecipe as any).totalTime ?? null,
+    servings: (basicRecipe as any).servings ?? null,
+    difficultyLevel: (basicRecipe as any).difficultyLevel ? String((basicRecipe as any).difficultyLevel) : null,
+    featured: !!(basicRecipe as any).featured,
+    published: !!(basicRecipe as any).published,
+    trending: !!(basicRecipe as any).trending,
+    publishedAt: (basicRecipe as any).publishedAt ?? null,
+    createdAt: (basicRecipe as any).createdAt ? new Date((basicRecipe as any).createdAt) : new Date(),
+    updatedAt: (basicRecipe as any).updatedAt ? new Date((basicRecipe as any).updatedAt) : new Date(),
+    images: Array.isArray((basicRecipe as any).images) ? (basicRecipe as any).images.map(String) : [],
+    ingredients: Array.isArray((basicRecipe as any).ingredients) ? (basicRecipe as any).ingredients : [],
+    steps: Array.isArray((basicRecipe as any).steps) ? (basicRecipe as any).steps : [],
+    instructions: (basicRecipe as any).instructions ? String((basicRecipe as any).instructions) : null,
+    notes: (basicRecipe as any).notes ? String((basicRecipe as any).notes) : null,
+    categoryIds, 
+    tagIds,
   };
+  
+  return recipeForParsing;
 }
 
 export async function updateRecipe(id: string, input: Partial<Omit<Recipe, "id" | "createdAt" | "updatedAt">>) {
